@@ -1,4 +1,4 @@
-services:
+﻿services:
   db:
     image: pgvector/pgvector:pg16
     environment:
@@ -34,7 +34,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+psycopg://neondb_owner:npg_g2Gh6qZDkQEr@ep-bold-silence-aoq2chbr.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=disable
+      DATABASE_URL: postgresql+psycopg://soundbridge:soundbridge@db:5432/soundbridge
       REDIS_URL: redis://redis:6379
     depends_on:
       db:
