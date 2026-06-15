@@ -1,0 +1,69 @@
+# Git
+.git
+.gitignore
+.gitmodules
+
+# Environment (compose env_file 사용)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs & local data
+*.log
+*.sqlite3
+*.db
+uploads/
+media/
+staticfiles/
+
+# 해커톤/로컬 전용 (이미지에 불필요)
+해커톤 대비용/
+
+# soundbridge 패키지와 중복되는 루트 모듈 (이미지 용량 절감)
+adapter/
+app/
+dependencies/
+domain/
+infrastructure/
+__init__.py
+
+# soundbridge 내부 중복
+soundbridge/main.py
+
+# Docs
+*.md
+!README.md

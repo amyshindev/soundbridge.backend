@@ -12,7 +12,7 @@ from soundbridge.adapter.outbound.orm import (  # noqa: F401
     track_emotion_tag_orm,
     track_orm,
 )
-from soundbridge.adapter.outbound.orm.base_orm import Base
+from soundbridge.infrastructure.base import Base
 from soundbridge.infrastructure.settings import settings
 
 config = context.config
