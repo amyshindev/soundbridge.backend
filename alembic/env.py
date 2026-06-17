@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from logging.config import fileConfig
 
 from alembic import context
@@ -14,6 +15,9 @@ from soundbridge.adapter.outbound.orm import (  # noqa: F401
 )
 from soundbridge.infrastructure.base import Base
 from soundbridge.infrastructure.settings import settings
+
+if sys.platform.startswith("win"):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 config = context.config
 if config.config_file_name is not None:

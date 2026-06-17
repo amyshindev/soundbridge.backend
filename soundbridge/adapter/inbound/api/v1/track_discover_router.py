@@ -42,8 +42,8 @@ async def discover_gugak(
                 )
                 track.preset_url = preset.full_url
         return to_discover_response(result)
-    except GeminiApiException:
-        raise HTTPException(status_code=503, detail="AI 서비스 일시 오류") from None
+    except GeminiApiException as e:
+        raise HTTPException(status_code=503, detail=str(e) or "AI 서비스 일시 오류") from None
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 

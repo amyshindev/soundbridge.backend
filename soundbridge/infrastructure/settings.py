@@ -11,8 +11,8 @@ class Settings(BaseSettings):
 
     # Gemini API [MVP]
     gemini_api_key: str
-    gemini_model: str = "gemini-2.0-flash"
-    gemini_embedding_model: str = "models/text-embedding-004"
+    gemini_model: str = "gemini-2.5-flash"
+    gemini_embedding_model: str = "models/gemini-embedding-001"
 
     # App [MVP]
     app_env: str = "development"

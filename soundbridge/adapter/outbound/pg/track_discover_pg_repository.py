@@ -17,6 +17,7 @@ from soundbridge.app.ports.output.track_repository import TrackRepository
 from soundbridge.domain.entities.track_entity import GugakTrack
 from soundbridge.infrastructure.exceptions import EmbeddingException
 from soundbridge.infrastructure.secret_manager import keymaker
+from soundbridge.infrastructure.settings import settings
 
 
 def _track_load_options() -> list:
@@ -135,6 +136,7 @@ class TrackDiscoverPgRepository(TrackRepository, EmbeddingPort):
                 model=keymaker.gemini_embedding_model,
                 content=text_content,
                 task_type="retrieval_query",
+                output_dimensionality=1536,
             )
             embedding = result.get("embedding")
             if not embedding:
@@ -154,7 +156,7 @@ class TrackDiscoverPgRepository(TrackRepository, EmbeddingPort):
             text("""
                 SELECT id FROM gugak_tracks
                 WHERE embedding IS NOT NULL
-                ORDER BY embedding <=> :vec::vector
+                ORDER BY embedding <=> CAST(:vec AS vector)
                 LIMIT :k
             """),
             {"vec": vec_literal, "k": top_k},

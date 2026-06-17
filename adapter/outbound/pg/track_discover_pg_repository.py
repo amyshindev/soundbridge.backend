@@ -135,6 +135,7 @@ class TrackDiscoverPgRepository(TrackRepository, EmbeddingPort):
                 model=keymaker.gemini_embedding_model,
                 content=text_content,
                 task_type="retrieval_query",
+                output_dimensionality=1536,
             )
             embedding = result.get("embedding")
             if not embedding:
@@ -154,7 +155,7 @@ class TrackDiscoverPgRepository(TrackRepository, EmbeddingPort):
             text("""
                 SELECT id FROM gugak_tracks
                 WHERE embedding IS NOT NULL
-                ORDER BY embedding <=> :vec::vector
+                ORDER BY embedding <=> CAST(:vec AS vector)
                 LIMIT :k
             """),
             {"vec": vec_literal, "k": top_k},
