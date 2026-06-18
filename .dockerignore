@@ -53,17 +53,6 @@ staticfiles/
 # 해커톤/로컬 전용 (이미지에 불필요)
 해커톤 대비용/
 
-# soundbridge 패키지와 중복되는 루트 모듈 (이미지 용량 절감)
-adapter/
-app/
-dependencies/
-domain/
-infrastructure/
-__init__.py
-
-# soundbridge 내부 중복
-soundbridge/main.py
-
 # Docs
 *.md
 !README.md
