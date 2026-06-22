@@ -24,7 +24,7 @@ class TrackOrmMapper:
             id=orm.id,
             title=orm.title,
             artist=orm.artist,
-            instrument=Instrument(orm.instrument),
+            instrument=Instrument.from_db_value(orm.instrument),
             jangdan=jangdan,
             emotion_tags=emotion_tags,
             bpm=orm.bpm,

@@ -17,10 +17,9 @@ import uuid
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
-import psycopg2
+import psycopg
 import requests
 from dotenv import load_dotenv
-from psycopg2.extras import execute_values
 
 load_dotenv()
 
@@ -256,14 +255,13 @@ def save_tracks(conn, tracks: list[dict]) -> int:
     if not tracks:
         return 0
     with conn.cursor() as cur:
-        execute_values(
-            cur,
+        cur.executemany(
             """
             INSERT INTO gugak_tracks (
                 id, title, artist, instrument, jangdan_name, bpm,
                 cue_points, audio_url, public_license_type,
                 description_ko, description_en, created_at
-            ) VALUES %s
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s)
             """,
             [
                 (
@@ -282,7 +280,6 @@ def save_tracks(conn, tracks: list[dict]) -> int:
                 )
                 for t in tracks
             ],
-            template="(%s,%s,%s,%s,%s,%s,%s::jsonb,%s,%s,%s,%s,%s)",
         )
 
         tag_rows = []
@@ -290,11 +287,10 @@ def save_tracks(conn, tracks: list[dict]) -> int:
             for i, tag in enumerate(t["emotion_tags"]):
                 tag_rows.append((str(uuid.uuid4()), t["id"], tag, i))
         if tag_rows:
-            execute_values(
-                cur,
+            cur.executemany(
                 """
                 INSERT INTO track_emotion_tags (id, track_id, emotion_tag, sort_order)
-                VALUES %s
+                VALUES (%s, %s, %s, %s)
                 """,
                 tag_rows,
             )
@@ -315,7 +311,7 @@ def run_collect(target: int = TARGET, dry_run: bool = False, csv_path: str = "")
     if not dry_run and not DB_URL:
         raise RuntimeError("DATABASE_URL 이 비어 있습니다.")
 
-    conn = None if dry_run else psycopg2.connect(normalize_db_url(DB_URL))
+    conn = None if dry_run else psycopg.connect(normalize_db_url(DB_URL))
     existing = set() if dry_run else get_existing_keys(conn)
 
     total_saved = 0
@@ -391,7 +387,7 @@ def run_collect(target: int = TARGET, dry_run: bool = False, csv_path: str = "")
 
 
 def check_db() -> None:
-    conn = psycopg2.connect(normalize_db_url(DB_URL))
+    conn = psycopg.connect(normalize_db_url(DB_URL))
     with conn.cursor() as cur:
         cur.execute("SELECT COUNT(*) FROM gugak_tracks")
         total = cur.fetchone()[0]

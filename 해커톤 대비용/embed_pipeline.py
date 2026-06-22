@@ -12,8 +12,7 @@
  
 import os
 import time
-import psycopg2
-from psycopg2.extras import execute_values
+import psycopg
 import google.generativeai as genai
 from dotenv import load_dotenv
  
@@ -107,6 +106,10 @@ def get_query_embedding(text: str) -> list[float]:
     return result["embedding"]
  
  
+def _vector_literal(vec: list[float]) -> str:
+    return "[" + ",".join(str(v) for v in vec) + "]"
+
+
 # ── 5. DB에 임베딩 저장 ───────────────────────────────────────────────────────
 def save_embeddings(conn, records: list[tuple]) -> None:
     """
@@ -114,15 +117,13 @@ def save_embeddings(conn, records: list[tuple]) -> None:
     ON CONFLICT DO NOTHING → 중복 실행해도 안전
     """
     cur = conn.cursor()
-    execute_values(
-        cur,
+    cur.executemany(
         """
         INSERT INTO track_embeddings (track_id, embedding_vector, created_at)
-        VALUES %s
+        VALUES (%s, %s::vector, NOW())
         ON CONFLICT (track_id) DO NOTHING
         """,
-        [(r[0], r[1], "NOW()") for r in records],
-        template="(%s, %s::vector, %s)"
+        [(r[0], _vector_literal(r[1])) for r in records],
     )
     conn.commit()
     cur.close()
@@ -150,7 +151,7 @@ def create_index(conn) -> None:
  
 # ── 7. 전체 파이프라인 실행 ───────────────────────────────────────────────────
 def run_pipeline(limit: int = 500) -> None:
-    conn = psycopg2.connect(DB_URL)
+    conn = psycopg.connect(DB_URL)
  
     # 임베딩 대상 조회
     print("📦 임베딩 대상 트랙 조회 중...")
@@ -210,7 +211,7 @@ def run_pipeline(limit: int = 500) -> None:
     print(f"\n🎉 임베딩 완료 — 성공 {success}건 / 실패 {failed}건")
  
     # 임베딩 완료 후 인덱스 생성
-    conn = psycopg2.connect(DB_URL)
+    conn = psycopg.connect(DB_URL)
     create_index(conn)
     conn.close()
  

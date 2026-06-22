@@ -18,7 +18,7 @@ from typing import Optional
  
 import anthropic
 import google.generativeai as genai
-import psycopg2
+import psycopg
 from dotenv import load_dotenv
  
 load_dotenv()
@@ -162,7 +162,7 @@ class TrackRepository:
         <=> 연산자: pgvector 코사인 거리 (0=완전일치, 1=완전반대)
         similarity = 1 - 거리
         """
-        conn = psycopg2.connect(self.db_url)
+        conn = psycopg.connect(self.db_url)
         cur  = conn.cursor()
  
         cur.execute("""
@@ -214,7 +214,7 @@ class TrackRepository:
         similarity_score: float
     ) -> None:
         """match_logs 테이블에 검색 기록 저장 — 심사 증빙 자료."""
-        conn = psycopg2.connect(self.db_url)
+        conn = psycopg.connect(self.db_url)
         cur  = conn.cursor()
         cur.execute("""
             INSERT INTO match_logs (id, input_text, matched_track_id, similarity_score, created_at)
