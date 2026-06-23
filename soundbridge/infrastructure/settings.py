@@ -9,10 +9,12 @@ class Settings(BaseSettings):
     database_url: str
     redis_url: str = "redis://localhost:6379"
 
-    # Gemini API [MVP]
+    # Gemini API [MVP] — v5.0 gemini_embed_model 별칭 호환
     gemini_api_key: str
     gemini_model: str = "gemini-2.5-flash"
+    gemini_embed_model: str = "models/gemini-embedding-001"
     gemini_embedding_model: str = "models/gemini-embedding-001"
+    embedding_dimension: int = 1536
 
     # App [MVP]
     app_env: str = "development"

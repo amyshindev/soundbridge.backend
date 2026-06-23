@@ -1,7 +1,6 @@
-# 레이어: Application — Domain → DTO 변환
+# 레이어: Outbound Mapper — GugakTrack → TrackResult DTO 변환
 from soundbridge.app.dtos.track_discover_dto import TrackResult
 from soundbridge.domain.entities.track_entity import GugakTrack
-from soundbridge.domain.value_objects.license_vo import LICENSE_EN_LABEL
 
 
 def to_track_result(track: GugakTrack) -> TrackResult:
@@ -20,7 +19,7 @@ def to_track_result(track: GugakTrack) -> TrackResult:
         ],
         audio_url=track.audio_url,
         license_type=track.public_license.value,
-        license_label_en=LICENSE_EN_LABEL[track.public_license],
+        license_label_en=track.license_label_en,
         description_ko=track.description_ko,
         description_en=track.description_en,
     )

@@ -1,6 +1,6 @@
 # 레이어: Application — CREATE 샘플 조회 유스케이스
 from soundbridge.app.dtos.sample_create_dto import SampleFilterCommand, SampleListResult
-from soundbridge.app.mappers.track_result_mapper import to_track_result
+from soundbridge.adapter.outbound.mappers.track_result_mapper import to_track_result
 from soundbridge.app.ports.input.sample_create_use_case import SampleCreateUseCase
 from soundbridge.app.ports.output.sample_repository import SampleRepository
 

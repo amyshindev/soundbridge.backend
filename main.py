@@ -20,13 +20,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="SoundBridge API",
-    version="4.0.0",
+    version="5.0.0",
     lifespan=lifespan,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url],
+    allow_origins=[settings.frontend_url, "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -38,3 +38,22 @@ app.include_router(soundbridge_router, prefix="/api")
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/health/db")
+async def health_db() -> dict[str, str]:
+    from sqlalchemy import text
+
+    from soundbridge.infrastructure.config import is_database_configured
+    from soundbridge.infrastructure.database import _ensure_engine, engine
+
+    if not is_database_configured():
+        return {"status": "error", "detail": "DATABASE_URL is not set"}
+    try:
+        _ensure_engine()
+        assert engine is not None
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        return {"status": "db connected"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}

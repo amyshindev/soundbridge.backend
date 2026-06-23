@@ -1,0 +1,1 @@
+# WebSocket inbound adapters (reserved)

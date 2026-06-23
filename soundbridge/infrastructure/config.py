@@ -13,7 +13,12 @@ def get_database_url() -> str:
     if not url:
         raise RuntimeError("DATABASE_URL is not set")
     if url.startswith("postgresql+psycopg://"):
-        return url
-    if url.startswith("postgresql://"):
-        return "postgresql+psycopg://" + url.removeprefix("postgresql://")
-    return url
+        normalized = url
+    elif url.startswith("postgresql://"):
+        normalized = "postgresql+psycopg://" + url.removeprefix("postgresql://")
+    else:
+        normalized = url
+    if "channel_binding" not in normalized:
+        separator = "&" if "?" in normalized else "?"
+        normalized = f"{normalized}{separator}channel_binding=disable"
+    return normalized

@@ -1,8 +1,8 @@
 # 레이어: Inbound Mapper — DTO → API Schema 변환
 from soundbridge.app.dtos.track_discover_dto import DiscoverResult, TrackResult
-from soundbridge.adapter.inbound.api.schemas.track_discover_schema import (
+from soundbridge.adapter.inbound.api.schemas.track_discover_schema import DiscoverResponseSchema
+from soundbridge.adapter.inbound.api.schemas.track_response_schema import (
     CuePointSchema,
-    DiscoverResponseSchema,
     TrackResponseSchema,
 )
 

@@ -2,17 +2,15 @@
 from dataclasses import dataclass
 from uuid import UUID
 
+from soundbridge.domain.entities.cue_point_entity import CuePoint
 from soundbridge.domain.value_objects.emotion_vo import EmotionTag
 from soundbridge.domain.value_objects.instrument_vo import Instrument
 from soundbridge.domain.value_objects.jangdan_vo import Jangdan
-from soundbridge.domain.value_objects.license_vo import LICENSE_IS_COMMERCIAL, PublicLicense
-
-
-@dataclass
-class CuePoint:
-    time_sec: float
-    label: str
-    emotion: str
+from soundbridge.domain.value_objects.license_vo import (
+    LICENSE_EN_LABEL,
+    LICENSE_IS_COMMERCIAL,
+    PublicLicense,
+)
 
 
 @dataclass
@@ -33,6 +31,10 @@ class GugakTrack:
     @property
     def loop_unit_beats(self) -> int:
         return self.jangdan.loop_unit_beats
+
+    @property
+    def license_label_en(self) -> str:
+        return LICENSE_EN_LABEL[self.public_license]
 
     @property
     def is_commercial(self) -> bool:

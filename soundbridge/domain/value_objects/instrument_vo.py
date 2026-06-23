@@ -11,7 +11,7 @@ INSTRUMENT_CODE_MAP: dict[str, str] = {
     "PHINST0005": "피리",
     "PHINST0006": "아쟁",
     "PHINST0007": "소금",
-    "소금": "대금",
+    "소금": "소금",
 }
 
 
@@ -24,8 +24,14 @@ class Instrument(str, Enum):
     AJAENG = "아쟁"
     JANGGU = "장구"
     SOGO = "소고"
+    SOGEUM = "소금"
+    PANSORI = "판소리"
+    OTHER = "기타"
 
     @classmethod
     def from_db_value(cls, raw: str) -> "Instrument":
         name = INSTRUMENT_CODE_MAP.get((raw or "").strip(), (raw or "").strip())
-        return cls(name)
+        try:
+            return cls(name)
+        except ValueError:
+            return cls.OTHER

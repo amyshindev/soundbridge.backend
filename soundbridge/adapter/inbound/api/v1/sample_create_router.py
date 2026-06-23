@@ -1,11 +1,11 @@
 # 레이어: Inbound — CREATE HTTP 엔드포인트
 from fastapi import APIRouter, Depends
 
-from soundbridge.adapter.inbound.api.schemas.track_discover_schema import (
+from soundbridge.adapter.inbound.api.schemas.sample_create_schema import (
     SampleFilterSchema,
     SampleListResponseSchema,
-    TrackResponseSchema,
 )
+from soundbridge.adapter.inbound.api.schemas.track_response_schema import TrackResponseSchema
 from soundbridge.adapter.inbound.mappers.track_discover_mapper import to_track_response
 from soundbridge.app.dtos.sample_create_dto import SampleFilterCommand
 from soundbridge.app.ports.input.sample_create_use_case import SampleCreateUseCase

@@ -4,7 +4,9 @@ import json
 from dataclasses import asdict
 from uuid import UUID
 
-from soundbridge.app.mappers.track_result_mapper import to_track_result
+from soundbridge.adapter.outbound.mappers.track_result_mapper import to_track_result
+from soundbridge.app.constants.filter_constants import POPULAR_TRACKS_DEFAULT_LIMIT
+from soundbridge.app.constants.preset_constants import DISCOVER_CACHE_TTL_SEC, DISCOVER_TOP_K
 from soundbridge.app.dtos.track_discover_dto import (
     DiscoverCommand,
     DiscoverResult,
@@ -16,7 +18,11 @@ from soundbridge.app.ports.output.embedding_port import EmbeddingPort
 from soundbridge.app.ports.output.gemini_port import GeminiPort
 from soundbridge.app.ports.output.track_repository import TrackRepository
 from soundbridge.domain.entities.track_entity import GugakTrack
-from soundbridge.infrastructure.exceptions import TrackNotFoundException
+from soundbridge.infrastructure.exceptions import (
+    EmbeddingException,
+    GeminiApiException,
+    TrackNotFoundException,
+)
 
 
 class TrackDiscoverInteractor(TrackDiscoverUseCase):
@@ -24,12 +30,12 @@ class TrackDiscoverInteractor(TrackDiscoverUseCase):
     def __init__(
         self,
         track_repo: TrackRepository,
-        claude: GeminiPort,
+        gemini: GeminiPort,
         embedding: EmbeddingPort,
         redis=None,
     ) -> None:
         self._track_repo = track_repo
-        self._claude = claude
+        self._gemini = gemini
         self._embedding = embedding
         self._redis = redis
 
@@ -42,13 +48,23 @@ class TrackDiscoverInteractor(TrackDiscoverUseCase):
                 tracks = [TrackResult(**t) for t in data["tracks"]]
                 return DiscoverResult(tracks=tracks, input_summary=data["input_summary"])
 
-        emotion = await self._claude.analyze_emotion(command.input_text, command.lang)
-        query_vec = await self._embedding.embed_text(emotion.embed_text)
-        track_ids = await self._embedding.find_similar_tracks(query_vec, top_k=3)
+        try:
+            query_vec = await self._embedding.embed_text(command.input_text)
+        except EmbeddingException as e:
+            raise GeminiApiException(str(e)) from e
+
+        track_ids = await self._embedding.find_similar_tracks(query_vec, top_k=DISCOVER_TOP_K)
         tracks = await self._track_repo.find_by_ids(track_ids)
-        explanations = await self._claude.explain_match(
-            command.input_text, tracks, command.lang
-        )
+
+        input_summary = f'"{command.input_text[:60]}" 와 어울리는 국악'
+        explanations: list[MatchExplanation] = []
+        if tracks:
+            try:
+                input_summary, explanations = await self._gemini.enrich_discover_matches(
+                    command.input_text, tracks, command.lang
+                )
+            except GeminiApiException:
+                explanations = self._template_explanations(command.input_text, tracks, command.lang)
 
         for track, exp in zip(tracks, explanations, strict=False):
             try:
@@ -58,18 +74,18 @@ class TrackDiscoverInteractor(TrackDiscoverUseCase):
             except Exception:
                 pass
 
-        result = self._build_result(tracks, explanations, command.input_text, command.lang)
+        result = self._build_result(tracks, explanations, input_summary, command.lang)
 
         if self._redis:
             payload = {
                 "tracks": [asdict(t) for t in result.tracks],
                 "input_summary": result.input_summary,
             }
-            await self._redis.setex(cache_key, 3600, json.dumps(payload, default=str))
+            await self._redis.setex(cache_key, DISCOVER_CACHE_TTL_SEC, json.dumps(payload, default=str))
 
         return result
 
-    async def get_popular_tracks(self, limit: int = 6) -> list[TrackResult]:
+    async def get_popular_tracks(self, limit: int = POPULAR_TRACKS_DEFAULT_LIMIT) -> list[TrackResult]:
         tracks = await self._track_repo.find_popular(limit)
         return [to_track_result(t) for t in tracks]
 
@@ -77,17 +93,49 @@ class TrackDiscoverInteractor(TrackDiscoverUseCase):
         track = await self._track_repo.find_by_id(UUID(track_id))
         if not track:
             raise TrackNotFoundException(track_id)
-        return self._build_result([track], [], "", "ko")
+        return self._build_result([track], [], track.title, "ko")
 
     def _make_cache_key(self, command: DiscoverCommand) -> str:
         digest = hashlib.md5(f"{command.input_text}:{command.lang}".encode()).hexdigest()
         return f"sb:discover:{digest}"
 
+    def _template_explanations(
+        self,
+        user_input: str,
+        tracks: list[GugakTrack],
+        lang: str,
+    ) -> list[MatchExplanation]:
+        short_input = user_input[:40]
+        explanations: list[MatchExplanation] = []
+        for track in tracks:
+            tags = ", ".join(e.value for e in track.emotion_tags)
+            if lang == "en":
+                ko = ""
+                en = (
+                    f"{short_input} pairs with {track.title}'s {track.jangdan.type.value} "
+                    f"rhythm and {tags} mood."
+                )
+            else:
+                ko = (
+                    f"{short_input}과(와) {track.title}의 {track.jangdan.type.value} 흐름, "
+                    f"{tags} 감성이 닮아 있습니다."
+                )
+                en = ""
+            explanations.append(
+                MatchExplanation(
+                    track_id=track.id,
+                    score=0.0,
+                    explanation_ko=ko,
+                    explanation_en=en,
+                )
+            )
+        return explanations
+
     def _build_result(
         self,
         tracks: list[GugakTrack],
         explanations: list[MatchExplanation],
-        input_text: str,
+        input_summary: str,
         lang: str,
     ) -> DiscoverResult:
         exp_map = {e.track_id: e for e in explanations}
@@ -99,5 +147,4 @@ class TrackDiscoverInteractor(TrackDiscoverUseCase):
                 tr.score = exp.score
                 tr.explanation = exp.explanation_ko if lang == "ko" else exp.explanation_en
             track_results.append(tr)
-        summary = input_text[:100] if input_text else ""
-        return DiscoverResult(tracks=track_results, input_summary=summary)
+        return DiscoverResult(tracks=track_results, input_summary=input_summary)

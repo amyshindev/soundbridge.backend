@@ -1,16 +1,17 @@
 # 레이어: Application — DISCOVER→CREATE 프리셋 URL 변환 유스케이스
+from soundbridge.app.constants.preset_constants import (
+    PRESET_BPM_MARGIN,
+    PRESET_BPM_MAX_CEIL,
+    PRESET_BPM_MIN_FLOOR,
+)
 from soundbridge.app.dtos.create_preset_dto import CreatePresetCommand, CreatePresetResult
 from soundbridge.app.ports.input.create_preset_use_case import CreatePresetUseCase
 
 
 class CreatePresetInteractor(CreatePresetUseCase):
-    BPM_MARGIN = 20
-    BPM_MIN_FLOOR = 60
-    BPM_MAX_CEIL = 200
-
     def build_preset_url(self, command: CreatePresetCommand) -> CreatePresetResult:
-        bpm_min = max(self.BPM_MIN_FLOOR, command.bpm - self.BPM_MARGIN)
-        bpm_max = min(self.BPM_MAX_CEIL, command.bpm + self.BPM_MARGIN)
+        bpm_min = max(PRESET_BPM_MIN_FLOOR, command.bpm - PRESET_BPM_MARGIN)
+        bpm_max = min(PRESET_BPM_MAX_CEIL, command.bpm + PRESET_BPM_MARGIN)
 
         params: dict[str, str] = {}
         if command.instrument:

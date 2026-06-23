@@ -1,9 +1,8 @@
-# 레이어: Outbound — TrackRepository + EmbeddingPort 구현
+# 레이어: Outbound — TrackRepository SQLAlchemy 구현
 import uuid
 from datetime import datetime, timezone
 
-import google.generativeai as genai
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -12,12 +11,8 @@ from soundbridge.adapter.outbound.orm.jangdan_orm import JangdanOrm
 from soundbridge.adapter.outbound.orm.match_log_orm import MatchLogOrm
 from soundbridge.adapter.outbound.orm.track_emotion_tag_orm import TrackEmotionTagOrm
 from soundbridge.adapter.outbound.orm.track_orm import GugakTrackOrm
-from soundbridge.app.ports.output.embedding_port import EmbeddingPort
 from soundbridge.app.ports.output.track_repository import TrackRepository
 from soundbridge.domain.entities.track_entity import GugakTrack
-from soundbridge.infrastructure.exceptions import EmbeddingException
-from soundbridge.infrastructure.secret_manager import keymaker
-from soundbridge.infrastructure.settings import settings
 
 
 def _track_load_options() -> list:
@@ -27,11 +22,10 @@ def _track_load_options() -> list:
     ]
 
 
-class TrackDiscoverPgRepository(TrackRepository, EmbeddingPort):
+class TrackDiscoverPgRepository(TrackRepository):
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
-        genai.configure(api_key=settings.gemini_api_key)
         self._mapper = TrackOrmMapper()
 
     async def find_by_id(self, track_id: uuid.UUID) -> GugakTrack | None:
@@ -60,7 +54,10 @@ class TrackDiscoverPgRepository(TrackRepository, EmbeddingPort):
 
     async def find_popular(self, limit: int = 6) -> list[GugakTrack]:
         result = await self._session.execute(
-            select(GugakTrackOrm).options(*_track_load_options()).limit(limit)
+            select(GugakTrackOrm)
+            .options(*_track_load_options())
+            .order_by(GugakTrackOrm.created_at.desc())
+            .limit(limit)
         )
         return [self._mapper.to_entity(r) for r in result.unique().scalars().all()]
 
@@ -127,38 +124,3 @@ class TrackDiscoverPgRepository(TrackRepository, EmbeddingPort):
             created_at=datetime.now(timezone.utc),
         )
         self._session.add(log)
-
-    async def embed_text(self, text_content: str) -> list[float]:
-        if not keymaker.has_gemini():
-            raise EmbeddingException("GEMINI_API_KEY is not configured")
-        try:
-            result = genai.embed_content(
-                model=keymaker.gemini_embedding_model,
-                content=text_content,
-                task_type="retrieval_query",
-                output_dimensionality=1536,
-            )
-            embedding = result.get("embedding")
-            if not embedding:
-                raise EmbeddingException("Empty embedding response")
-            return list(embedding)
-        except Exception as e:
-            raise EmbeddingException(f"Embedding failed: {e}") from e
-
-    async def find_similar_tracks(
-        self,
-        query_vector: list[float],
-        top_k: int = 3,
-        filters: dict | None = None,
-    ) -> list[uuid.UUID]:
-        vec_literal = "[" + ",".join(str(v) for v in query_vector) + "]"
-        result = await self._session.execute(
-            text("""
-                SELECT id FROM gugak_tracks
-                WHERE embedding IS NOT NULL
-                ORDER BY embedding <=> CAST(:vec AS vector)
-                LIMIT :k
-            """),
-            {"vec": vec_literal, "k": top_k},
-        )
-        return [row[0] for row in result.fetchall()]

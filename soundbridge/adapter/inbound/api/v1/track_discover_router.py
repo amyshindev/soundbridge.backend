@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from soundbridge.adapter.inbound.api.schemas.track_discover_schema import (
     DiscoverRequestSchema,
     DiscoverResponseSchema,
-    TrackResponseSchema,
 )
+from soundbridge.adapter.inbound.api.schemas.track_response_schema import TrackResponseSchema
 from soundbridge.adapter.inbound.mappers.track_discover_mapper import (
     to_discover_response,
     to_track_response,
@@ -14,7 +14,7 @@ from soundbridge.app.dtos.create_preset_dto import CreatePresetCommand
 from soundbridge.app.dtos.track_discover_dto import DiscoverCommand
 from soundbridge.app.ports.input.create_preset_use_case import CreatePresetUseCase
 from soundbridge.app.ports.input.track_discover_use_case import TrackDiscoverUseCase
-from soundbridge.dependencies.sample_create_provider import get_create_preset_use_case
+from soundbridge.dependencies.create_preset_provider import get_create_preset_use_case
 from soundbridge.dependencies.track_discover_provider import get_track_discover_use_case
 from soundbridge.infrastructure.exceptions import GeminiApiException, TrackNotFoundException
 

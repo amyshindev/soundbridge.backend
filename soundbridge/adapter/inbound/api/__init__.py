@@ -1,17 +1,4 @@
-# 레이어: Inbound — 라우터 집계
-from fastapi import APIRouter
+# 레이어: Inbound — API 패키지 (router_registry re-export)
+from soundbridge.adapter.inbound.api.router_registry import soundbridge_router
 
-from soundbridge.adapter.inbound.api.v1 import sample_create_router, track_discover_router
-
-soundbridge_router = APIRouter()
-
-soundbridge_router.include_router(
-    track_discover_router.router,
-    prefix="/soundbridge/discover",
-    tags=["DISCOVER"],
-)
-soundbridge_router.include_router(
-    sample_create_router.router,
-    prefix="/soundbridge/create",
-    tags=["CREATE"],
-)
+__all__ = ["soundbridge_router"]
