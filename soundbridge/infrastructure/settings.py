@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     # App [MVP]
     app_env: str = "development"
     frontend_url: str = "http://localhost:3000"
+    cors_origins: str = ""
+    # DISCOVER: 기본 템플릿 설명(빠름). true 또는 요청 enrich=true 시 Gemini 설명
+    discover_gemini_enrich: bool = False
+    discover_gemini_timeout_sec: float = 5.0
+    discover_embed_timeout_sec: float = 15.0
 
     # Auth [v1.1]
     secret_key: str = ""

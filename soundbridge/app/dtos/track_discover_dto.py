@@ -6,6 +6,7 @@ from uuid import UUID
 class DiscoverCommand:
     input_text: str
     lang: str = "ko"
+    enrich: bool = False
 
 
 @dataclass

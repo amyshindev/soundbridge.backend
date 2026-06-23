@@ -1,4 +1,5 @@
 # 레이어: Application — DISCOVER 유스케이스 오케스트레이션
+import asyncio
 import hashlib
 import json
 from dataclasses import asdict
@@ -23,6 +24,7 @@ from soundbridge.infrastructure.exceptions import (
     GeminiApiException,
     TrackNotFoundException,
 )
+from soundbridge.infrastructure.settings import settings
 
 
 class TrackDiscoverInteractor(TrackDiscoverUseCase):
@@ -49,22 +51,37 @@ class TrackDiscoverInteractor(TrackDiscoverUseCase):
                 return DiscoverResult(tracks=tracks, input_summary=data["input_summary"])
 
         try:
-            query_vec = await self._embedding.embed_text(command.input_text)
+            query_vec = await asyncio.wait_for(
+                self._embedding.embed_text(command.input_text),
+                timeout=settings.discover_embed_timeout_sec,
+            )
+        except asyncio.TimeoutError as e:
+            raise GeminiApiException("임베딩 생성 시간이 초과되었습니다.") from e
         except EmbeddingException as e:
             raise GeminiApiException(str(e)) from e
 
         track_ids = await self._embedding.find_similar_tracks(query_vec, top_k=DISCOVER_TOP_K)
         tracks = await self._track_repo.find_by_ids(track_ids)
 
-        input_summary = f'"{command.input_text[:60]}" 와 어울리는 국악'
+        input_summary = f'"{command.input_text[:60]}" 와 감성이 닮은 국악'
         explanations: list[MatchExplanation] = []
         if tracks:
-            try:
-                input_summary, explanations = await self._gemini.enrich_discover_matches(
+            if self._should_gemini_enrich(command):
+                try:
+                    input_summary, explanations = await asyncio.wait_for(
+                        self._gemini.enrich_discover_matches(
+                            command.input_text, tracks, command.lang
+                        ),
+                        timeout=settings.discover_gemini_timeout_sec,
+                    )
+                except (asyncio.TimeoutError, GeminiApiException):
+                    explanations = self._template_explanations(
+                        command.input_text, tracks, command.lang
+                    )
+            else:
+                explanations = self._template_explanations(
                     command.input_text, tracks, command.lang
                 )
-            except GeminiApiException:
-                explanations = self._template_explanations(command.input_text, tracks, command.lang)
 
         for track, exp in zip(tracks, explanations, strict=False):
             try:
@@ -95,8 +112,14 @@ class TrackDiscoverInteractor(TrackDiscoverUseCase):
             raise TrackNotFoundException(track_id)
         return self._build_result([track], [], track.title, "ko")
 
+    def _should_gemini_enrich(self, command: DiscoverCommand) -> bool:
+        return command.enrich or settings.discover_gemini_enrich
+
     def _make_cache_key(self, command: DiscoverCommand) -> str:
-        digest = hashlib.md5(f"{command.input_text}:{command.lang}".encode()).hexdigest()
+        enrich_flag = "1" if self._should_gemini_enrich(command) else "0"
+        digest = hashlib.md5(
+            f"{command.input_text}:{command.lang}:{enrich_flag}".encode()
+        ).hexdigest()
         return f"sb:discover:{digest}"
 
     def _template_explanations(

@@ -28,7 +28,7 @@ async def discover_gugak(
     preset_use_case: CreatePresetUseCase = Depends(get_create_preset_use_case),
 ) -> DiscoverResponseSchema:
     try:
-        command = DiscoverCommand(input_text=body.input, lang=body.lang)
+        command = DiscoverCommand(input_text=body.input, lang=body.lang, enrich=body.enrich)
         result = await use_case.discover(command=command)
         for track in result.tracks:
             if track.emotion_tags:
