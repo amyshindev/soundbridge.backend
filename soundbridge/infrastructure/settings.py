@@ -1,6 +1,6 @@
 # 레이어: Infrastructure — 환경변수 SSOT
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
+import os
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=(".env", "../.env"), extra="ignore")
