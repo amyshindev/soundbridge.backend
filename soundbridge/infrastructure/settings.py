@@ -7,7 +7,7 @@ class Settings(BaseSettings):
 
     # Database [MVP]
     database_url: str
-    redis_url: str = "redis://localhost:6379"
+    redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379")
 
     # Gemini API [v1.1] — 선택. Ollama EXAONE 사용 시 비워도 됨
     gemini_api_key: str = ""
