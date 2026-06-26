@@ -29,7 +29,7 @@ async def test_discover_returns_matched_tracks(
 
     with patch.object(settings, "discover_ollama_enrich", False):
         result = await interactor.discover(
-            DiscoverCommand(input_text="서정적인 느낌", lang="ko", enrich=False)
+            DiscoverCommand(input_text="서정적인 느낌", lang="ko", enrich=True)
         )
 
     assert len(result.tracks) == 1
