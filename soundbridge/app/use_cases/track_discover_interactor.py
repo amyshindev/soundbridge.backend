@@ -2,6 +2,7 @@
 import asyncio
 import hashlib
 import json
+import logging
 from dataclasses import asdict
 from uuid import UUID
 
@@ -25,6 +26,8 @@ from soundbridge.infrastructure.exceptions import (
     TrackNotFoundException,
 )
 from soundbridge.infrastructure.settings import settings
+
+logger = logging.getLogger(__name__)
 
 
 class TrackDiscoverInteractor(TrackDiscoverUseCase):
@@ -60,24 +63,30 @@ class TrackDiscoverInteractor(TrackDiscoverUseCase):
         except EmbeddingException as e:
             raise GeminiApiException(str(e)) from e
 
-        track_ids = await self._embedding.find_similar_tracks(query_vec, top_k=DISCOVER_TOP_K)
+        try:
+            track_ids = await self._embedding.find_similar_tracks(query_vec, top_k=DISCOVER_TOP_K)
+        except EmbeddingException as e:
+            raise GeminiApiException(str(e)) from e
         tracks = await self._track_repo.find_by_ids(track_ids)
 
-        input_summary = f'"{command.input_text[:60]}" 와 감성이 닮은 국악'
+        return await self._finalize_discover(command, tracks, cache_key)
+
+    async def _finalize_discover(
+        self,
+        command: DiscoverCommand,
+        tracks: list[GugakTrack],
+        cache_key: str,
+    ) -> DiscoverResult:
+        if command.lang == "en":
+            input_summary = f'Gugak tracks with a similar mood to "{command.input_text[:60]}"'
+        else:
+            input_summary = f'"{command.input_text[:60]}" 와 감성이 닮은 국악'
         explanations: list[MatchExplanation] = []
         if tracks:
             if self._should_gemini_enrich(command):
-                try:
-                    input_summary, explanations = await asyncio.wait_for(
-                        self._gemini.enrich_discover_matches(
-                            command.input_text, tracks, command.lang
-                        ),
-                        timeout=settings.discover_gemini_timeout_sec,
-                    )
-                except (asyncio.TimeoutError, GeminiApiException):
-                    explanations = self._template_explanations(
-                        command.input_text, tracks, command.lang
-                    )
+                explanations, input_summary = await self._resolve_explanations(
+                    command, tracks, input_summary
+                )
             else:
                 explanations = self._template_explanations(
                     command.input_text, tracks, command.lang
@@ -120,7 +129,64 @@ class TrackDiscoverInteractor(TrackDiscoverUseCase):
         digest = hashlib.md5(
             f"{command.input_text}:{command.lang}:{enrich_flag}".encode()
         ).hexdigest()
-        return f"sb:discover:{digest}"
+        return f"sb:discover:v5:{digest}"
+
+    async def _resolve_explanations(
+        self,
+        command: DiscoverCommand,
+        tracks: list[GugakTrack],
+        input_summary: str,
+    ) -> tuple[list[MatchExplanation], str]:
+        """EXAONE 배치 → 곡별 병렬 순으로 시도. 전체 예산 discover_total_timeout_sec."""
+
+        async def _run() -> tuple[list[MatchExplanation], str]:
+            try:
+                summary, explanations = await self._gemini.enrich_discover_matches(
+                    command.input_text, tracks, command.lang
+                )
+                if self._has_rich_explanations(explanations):
+                    return explanations, summary
+            except GeminiApiException as e:
+                logger.warning("Discover batch enrich failed: %s", e)
+
+            explanations = await self._gemini.explain_match(
+                command.input_text, tracks, command.lang
+            )
+            if self._has_rich_explanations(explanations):
+                return explanations, input_summary
+            raise GeminiApiException("EXAONE explanations too thin")
+
+        try:
+            return await asyncio.wait_for(_run(), timeout=settings.discover_total_timeout_sec)
+        except (asyncio.TimeoutError, GeminiApiException) as e:
+            logger.warning("Discover LLM phase failed: %s", e)
+
+        return (
+            self._template_explanations(command.input_text, tracks, command.lang),
+            input_summary,
+        )
+
+    @staticmethod
+    def _has_rich_explanations(explanations: list[MatchExplanation]) -> bool:
+        contrast = (
+            "인 반해",
+            "하지만",
+            "반면",
+            "와 달리",
+            "다르지만",
+            "보다 더",
+            "차이가",
+        )
+        for exp in explanations:
+            text = (exp.explanation_ko or exp.explanation_en or "").strip()
+            if len(text) < 35:
+                continue
+            if any(marker in text for marker in contrast):
+                continue
+            if "흐름, 감성이 닮아" in text:
+                continue
+            return True
+        return False
 
     def _template_explanations(
         self,

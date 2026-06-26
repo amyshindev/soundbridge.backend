@@ -2,9 +2,10 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
+from sqlalchemy import text
 
 from soundbridge.adapter.outbound.mappers.track_orm_mapper import TrackOrmMapper
 from soundbridge.adapter.outbound.orm.jangdan_orm import JangdanOrm
@@ -54,16 +55,60 @@ class TrackDiscoverPgRepository(TrackRepository):
 
     async def find_popular(self, limit: int = 6) -> list[GugakTrack]:
         result = await self._session.execute(
-            select(GugakTrackOrm)
-            .options(*_track_load_options())
-            .order_by(GugakTrackOrm.created_at.desc())
-            .limit(limit)
+            text("""
+                SELECT
+                    t.*,
+                    COALESCE(
+                        array_agg(tet.emotion_tag ORDER BY tet.sort_order)
+                        FILTER (WHERE tet.emotion_tag IS NOT NULL),
+                        ARRAY[]::varchar[]
+                    ) AS emotion_tag_rows
+                FROM gugak_tracks t
+                LEFT JOIN track_emotion_tags tet ON tet.track_id = t.id
+                WHERE t.embedding IS NOT NULL
+                  AND t.source_identifier IS NOT NULL
+                AND t.id IN (
+                    SELECT DISTINCT ON (title) id
+                    FROM gugak_tracks
+                    WHERE embedding IS NOT NULL
+                      AND source_identifier IS NOT NULL
+                    ORDER BY title, created_at DESC
+                )
+                GROUP BY t.id
+                ORDER BY RANDOM()
+                LIMIT :limit
+            """),
+            {"limit": limit},
         )
-        return [self._mapper.to_entity(r) for r in result.unique().scalars().all()]
+        tracks: list[GugakTrack] = []
+        for row in result.mappings().all():
+            orm = GugakTrackOrm(
+                id=row["id"],
+                title=row["title"],
+                artist=row["artist"],
+                instrument=row["instrument"],
+                jangdan_name=row["jangdan_name"],
+                bpm=row["bpm"],
+                cue_points=row["cue_points"],
+                audio_url=row["audio_url"],
+                public_license_type=row["public_license_type"],
+                description_ko=row["description_ko"],
+                description_en=row["description_en"],
+                embedding=row.get("embedding"),
+                created_at=row["created_at"],
+            )
+            tag_names = row.get("emotion_tag_rows") or []
+            orm.emotion_tag_rows = [
+                TrackEmotionTagOrm(emotion_tag=tag, sort_order=index)
+                for index, tag in enumerate(tag_names)
+            ]
+            tracks.append(self._mapper.to_entity(orm))
+        return tracks
 
     async def find_with_filters(
         self,
         instruments: list[str] | None,
+        genres: list[str] | None,
         jangdans: list[str] | None,
         emotions: list[str] | None,
         bpm_min: int | None,
@@ -74,15 +119,24 @@ class TrackDiscoverPgRepository(TrackRepository):
         offset: int = 0,
     ) -> tuple[list[GugakTrack], int]:
         query = select(GugakTrackOrm).options(*_track_load_options())
+        query = query.where(GugakTrackOrm.source_identifier.isnot(None))
 
         if instruments:
             query = query.where(GugakTrackOrm.instrument.in_(instruments))
+        if genres:
+            query = query.where(GugakTrackOrm.genre_mclsf.in_(genres))
         if jangdans:
             query = query.where(GugakTrackOrm.jangdan_name.in_(jangdans))
-        if bpm_min is not None:
-            query = query.where(GugakTrackOrm.bpm >= bpm_min)
-        if bpm_max is not None:
-            query = query.where(GugakTrackOrm.bpm <= bpm_max)
+        if bpm_min is not None or bpm_max is not None:
+            lo = bpm_min if bpm_min is not None else 0
+            hi = bpm_max if bpm_max is not None else 300
+            # TM 메타 tempo=N/A → bpm=0; 템포 미기재 곡은 필터에서 제외하지 않음
+            query = query.where(
+                or_(
+                    GugakTrackOrm.bpm == 0,
+                    (GugakTrackOrm.bpm >= lo) & (GugakTrackOrm.bpm <= hi),
+                )
+            )
         if license_type:
             query = query.where(GugakTrackOrm.public_license_type == license_type)
 

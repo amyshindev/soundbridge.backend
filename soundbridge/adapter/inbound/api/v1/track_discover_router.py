@@ -1,10 +1,17 @@
 # 레이어: Inbound — DISCOVER HTTP 엔드포인트
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from soundbridge.adapter.inbound.api.schemas.track_discover_schema import (
     DiscoverRequestSchema,
     DiscoverResponseSchema,
 )
+from soundbridge.adapter.inbound.api.schemas.track_suggest_schema import (
+    TrackSuggestResponseSchema,
+    TrackSuggestionSchema,
+)
+from soundbridge.adapter.outbound.external.itunes_search_adapter import ItunesSearchAdapter
 from soundbridge.adapter.inbound.api.schemas.track_response_schema import TrackResponseSchema
 from soundbridge.adapter.inbound.mappers.track_discover_mapper import (
     to_discover_response,
@@ -44,8 +51,26 @@ async def discover_gugak(
         return to_discover_response(result)
     except GeminiApiException as e:
         raise HTTPException(status_code=503, detail=str(e) or "AI 서비스 일시 오류") from None
+    except json.JSONDecodeError as e:
+        raise HTTPException(
+            status_code=503,
+            detail="매칭 설명 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+        ) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/suggest", response_model=TrackSuggestResponseSchema)
+async def suggest_released_tracks(
+    q: str = "",
+    limit: int = 8,
+) -> TrackSuggestResponseSchema:
+    """정식 발매 곡 자동완성 (iTunes Search API)."""
+    adapter = ItunesSearchAdapter()
+    items = await adapter.search_songs(q, limit=min(max(limit, 1), 15))
+    return TrackSuggestResponseSchema(
+        suggestions=[TrackSuggestionSchema(**item) for item in items]
+    )
 
 
 @router.get("/popular", response_model=list[TrackResponseSchema])

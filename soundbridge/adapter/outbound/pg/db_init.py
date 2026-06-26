@@ -6,6 +6,7 @@ from soundbridge.adapter.outbound.orm import (  # noqa: F401
     track_orm,
 )
 from soundbridge.adapter.outbound.orm.jangdan_orm import JangdanOrm
+from soundbridge.adapter.outbound.pg.schema_migrate import migrate_gugak_tracks_tm_columns
 from soundbridge.infrastructure.config import is_database_configured
 from soundbridge.infrastructure import database
 
@@ -31,3 +32,4 @@ async def create_soundbridge_tables() -> None:
             if not exists:
                 session.add(JangdanOrm(name=name, loop_unit_beats=beats))
         await session.commit()
+        await migrate_gugak_tracks_tm_columns(session)

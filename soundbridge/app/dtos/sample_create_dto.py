@@ -7,6 +7,7 @@ from soundbridge.app.dtos.track_discover_dto import TrackResult
 @dataclass
 class SampleFilterCommand:
     instruments: list[str] | None = None
+    genres: list[str] | None = None
     jangdans: list[str] | None = None
     emotions: list[str] | None = None
     bpm_min: int | None = None

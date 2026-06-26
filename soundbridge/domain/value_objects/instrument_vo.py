@@ -26,7 +26,8 @@ class Instrument(str, Enum):
     SOGO = "소고"
     SOGEUM = "소금"
     PANSORI = "판소리"
-    OTHER = "기타"
+    VOCAL = "가창"
+    OTHER = "미분류"
 
     @classmethod
     def from_db_value(cls, raw: str) -> "Instrument":

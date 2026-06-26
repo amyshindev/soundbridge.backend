@@ -17,6 +17,7 @@ class SampleCreatePgRepository(SampleRepository):
     ) -> tuple[list[GugakTrack], int]:
         return await self._track_repo.find_with_filters(
             instruments=command.instruments,
+            genres=command.genres,
             jangdans=command.jangdans,
             emotions=command.emotions,
             bpm_min=command.bpm_min,

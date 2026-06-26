@@ -22,6 +22,7 @@ class TrackRepository(ABC):
     async def find_with_filters(
         self,
         instruments: list[str] | None,
+        genres: list[str] | None,
         jangdans: list[str] | None,
         emotions: list[str] | None,
         bpm_min: int | None,

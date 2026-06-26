@@ -1,11 +1,12 @@
 # 레이어: Inbound Mapper — CREATE 샘플 필터 변환 (확장용)
-from soundbridge.adapter.inbound.api.schemas.track_discover_schema import SampleFilterSchema
+from soundbridge.adapter.inbound.api.schemas.sample_create_schema import SampleFilterSchema
 from soundbridge.app.dtos.sample_create_dto import SampleFilterCommand
 
 
 def to_sample_filter_command(filters: SampleFilterSchema) -> SampleFilterCommand:
     return SampleFilterCommand(
         instruments=filters.instruments,
+        genres=filters.genres,
         jangdans=filters.jangdans,
         emotions=filters.emotions,
         bpm_min=filters.bpm_min,

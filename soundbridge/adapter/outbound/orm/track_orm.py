@@ -23,8 +23,20 @@ class GugakTrackOrm(Base):
     public_license_type = Column(String(20), nullable=False)
     description_ko = Column(Text, nullable=False, default="")
     description_en = Column(Text, nullable=False, default="")
-    embedding = Column(Vector(1536), nullable=True)
+    embedding = Column(Vector(768), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    # 국악음원(TM) 학습데이터 메타
+    source_identifier = Column(String(80), nullable=True, unique=True)
+    classification_code = Column(String(20), nullable=False, default="")
+    genre_lclsf = Column(String(50), nullable=False, default="")
+    genre_mclsf = Column(String(50), nullable=False, default="")
+    genre_sclsf = Column(String(50), nullable=False, default="")
+    time_signature = Column(String(20), nullable=False, default="")
+    tempo_label = Column(String(20), nullable=False, default="")
+    original_track_code = Column(String(50), nullable=False, default="")
+    jangdan_raw = Column(String(50), nullable=False, default="")
+    whole_emotions = Column(JSONB, nullable=False, default=list)
+    whole_tones = Column(JSONB, nullable=False, default=list)
 
     jangdan_rel = relationship("JangdanOrm", back_populates="tracks")
     emotion_tag_rows = relationship(
