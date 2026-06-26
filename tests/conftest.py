@@ -87,7 +87,7 @@ def mock_embedding_port(track_id: uuid.UUID) -> AsyncMock:
 
 
 @pytest.fixture
-def mock_gemini_port() -> AsyncMock:
+def mock_ollama_port() -> AsyncMock:
     return AsyncMock()
 
 

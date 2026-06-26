@@ -7,7 +7,6 @@ alembic==1.18.4
 pgvector==0.4.2
 pydantic==2.13.4
 pydantic-settings==2.14.1
-google-generativeai==0.8.6
 redis==8.0.0
 python-dotenv==1.2.2
 httpx==0.28.1

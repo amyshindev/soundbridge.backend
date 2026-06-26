@@ -1,4 +1,4 @@
-# 레이어: Outbound — Ollama EXAONE 등 로컬 LLM (GeminiPort 구현)
+# 레이어: Outbound — Ollama EXAONE 등 로컬 LLM (OllamaPort 구현)
 from __future__ import annotations
 
 import asyncio
@@ -9,8 +9,8 @@ import re
 import httpx
 
 from soundbridge.app.dtos.track_discover_dto import EmotionAnalysisResult, MatchExplanation
-from soundbridge.app.ports.output.gemini_port import GeminiPort
-from soundbridge.infrastructure.exceptions import GeminiApiException
+from soundbridge.app.ports.output.ollama_port import OllamaPort
+from soundbridge.infrastructure.exceptions import OllamaApiException
 from soundbridge.infrastructure.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ JSON만 출력:
 
 
 def _raise_llm_error(exc: Exception, context: str) -> None:
-    raise GeminiApiException(
+    raise OllamaApiException(
         f"{context}: {exc}. Ollama가 실행 중이고 "
         f"'{settings.ollama_chat_model}' 모델이 pull 되었는지 확인하세요."
     ) from exc
@@ -82,7 +82,7 @@ def _extract_json_object(raw: str) -> dict:
                 return json.loads(match.group())
             except json.JSONDecodeError:
                 pass
-        raise GeminiApiException("LLM JSON 파싱 실패")
+        raise OllamaApiException("LLM JSON 파싱 실패")
 
 
 def _parse_explanations_from_raw(raw: str, track_count: int) -> list[dict]:
@@ -134,7 +134,7 @@ def _is_rich_explanation(text: str) -> bool:
     return not any(marker in stripped or marker in lower for marker in _CONTRAST_MARKERS)
 
 
-class OllamaLlmAdapter(GeminiPort):
+class OllamaLlmAdapter(OllamaPort):
 
     def __init__(self) -> None:
         self._base_url = settings.ollama_base_url.rstrip("/")
@@ -156,9 +156,9 @@ class OllamaLlmAdapter(GeminiPort):
                 response.raise_for_status()
                 content = response.json().get("message", {}).get("content", "")
                 if not content:
-                    raise GeminiApiException("Ollama 응답이 비어 있습니다.")
+                    raise OllamaApiException("Ollama 응답이 비어 있습니다.")
                 return content
-        except GeminiApiException:
+        except OllamaApiException:
             raise
         except httpx.HTTPError as e:
             _raise_llm_error(e, "Ollama LLM 요청 실패")
@@ -166,7 +166,7 @@ class OllamaLlmAdapter(GeminiPort):
             _raise_llm_error(e, "Ollama LLM 처리 실패")
 
     async def analyze_emotion(self, user_input: str, lang: str) -> EmotionAnalysisResult:
-        raise GeminiApiException("Ollama 감성 분석은 DISCOVER에서 사용하지 않습니다.")
+        raise OllamaApiException("Ollama 감성 분석은 DISCOVER에서 사용하지 않습니다.")
 
     async def explain_match(
         self, user_input: str, tracks: list, lang: str
@@ -231,7 +231,7 @@ class OllamaLlmAdapter(GeminiPort):
             data = _extract_json_object(raw)
             explanation_items = data.get("explanations", [])
             summary = (data.get("input_summary") or user_input)[:200]
-        except GeminiApiException:
+        except OllamaApiException:
             explanation_items = _parse_explanations_from_raw(raw, len(tracks))
             if not explanation_items:
                 raise
@@ -258,7 +258,7 @@ class OllamaLlmAdapter(GeminiPort):
             )
 
         if not any(_is_rich_explanation(e.explanation_ko) for e in explanations):
-            raise GeminiApiException("EXAONE 설명이 충분히 생성되지 않았습니다.")
+            raise OllamaApiException("EXAONE 설명이 충분히 생성되지 않았습니다.")
 
         return summary, explanations
 

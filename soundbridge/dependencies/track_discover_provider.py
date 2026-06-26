@@ -16,7 +16,7 @@ def get_track_discover_use_case(
 ) -> TrackDiscoverUseCase:
     return TrackDiscoverInteractor(
         track_repo=TrackDiscoverPgRepository(session=db),
-        gemini=OllamaLlmAdapter(),
+        ollama=OllamaLlmAdapter(),
         embedding=OllamaEmbeddingAdapter(session=db),
         redis=redis_client,
     )
