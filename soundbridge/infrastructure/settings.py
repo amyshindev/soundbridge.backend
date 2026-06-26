@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     audio_files_root: str = ""
     # DISCOVER: enrich=true 시 Ollama LLM(EXAONE)으로 매칭 설명. false면 템플릿
     discover_ollama_enrich: bool = True
-    discover_llm_timeout_sec: float = 45.0
+    discover_llm_timeout_sec: float = 90.0
     discover_embed_timeout_sec: float = 30.0
     discover_total_timeout_sec: float = 75.0
 

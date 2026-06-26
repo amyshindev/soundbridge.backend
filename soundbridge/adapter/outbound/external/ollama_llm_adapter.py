@@ -204,8 +204,12 @@ class OllamaLlmAdapter(OllamaPort):
                     explanation_en="",
                 )
 
-        return list(await asyncio.gather(*(explain_one(track) for track in tracks)))
-
+        results = []
+        for track in tracks:
+            result = await explain_one(track)
+        results.append(result)
+        return results
+        
     async def enrich_discover_matches(
         self, user_input: str, tracks: list, lang: str
     ) -> tuple[str, list[MatchExplanation]]:
