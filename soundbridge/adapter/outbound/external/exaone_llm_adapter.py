@@ -10,6 +10,7 @@ from openai import AsyncOpenAI
 from soundbridge.app.dtos.track_discover_dto import EmotionAnalysisResult, MatchExplanation
 from soundbridge.app.ports.output.exaone_port import ExaonePort
 from soundbridge.infrastructure.exceptions import ExaoneApiException
+from soundbridge.infrastructure.secret_manager import secretmanager
 from soundbridge.infrastructure.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -137,7 +138,7 @@ class ExaoneLlmAdapter(ExaonePort):
 
     def __init__(self) -> None:
         self._client = AsyncOpenAI(
-            api_key=settings.exaone_api_key,
+            api_key=secretmanager.get_exaone_api_key(),
             base_url=settings.exaone_base_url.rstrip("/"),
             timeout=settings.discover_llm_timeout_sec,
         )

@@ -10,7 +10,6 @@ class Settings(BaseSettings):
     redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379")
 
     # EXAONE LLM (Friendli AI) [MVP] — DISCOVER 매칭 설명
-    exaone_api_key: str = "flp_xxxxxx"
     exaone_base_url: str = "https://api.friendli.ai/serverless/v1"
     exaone_model: str = "LGAI-EXAONE/K-EXAONE-236B-A23B"
 
@@ -24,6 +23,12 @@ class Settings(BaseSettings):
     discover_embed_timeout_sec: float = 30.0
     discover_llm_timeout_sec: float = 60.0
     discover_total_timeout_sec: float = 90.0
+
+    # App [MVP]
+    app_env: str = "development"
+    frontend_url: str = "https://soundbridge.site"
+    cors_origins: str = ""  # 쉼표 구분 추가 허용 origin
+    audio_files_root: str = ""
 
     # Auth [v1.1]
     secret_key: str = ""

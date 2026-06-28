@@ -8,13 +8,13 @@ from soundbridge.adapter.inbound.api import soundbridge_router
 from soundbridge.adapter.outbound.pg.db_init import create_soundbridge_tables
 from soundbridge.infrastructure.audio_file_resolver import warm_audio_index
 from soundbridge.infrastructure.database import dispose_engine
-from soundbridge.infrastructure.secret_manager import keymaker
+from soundbridge.infrastructure.secret_manager import secretmanager
 from soundbridge.infrastructure.settings import settings
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    keymaker.bootstrap()
+    secretmanager.bootstrap()
     await create_soundbridge_tables()
     if settings.audio_files_root:
         count = warm_audio_index(Path(settings.audio_files_root))

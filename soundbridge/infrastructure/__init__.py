@@ -7,16 +7,16 @@ from soundbridge.infrastructure.database import (
     get_db,
     init_db,
 )
-from soundbridge.infrastructure.secret_manager import Keymaker, keymaker
+from soundbridge.infrastructure.secret_manager import SecretManager, secretmanager
 
 __all__ = [
     "AsyncSessionLocal",
     "Base",
     "DbSession",
-    "Keymaker",
+    "SecretManager",
     "dispose_engine",
     "engine",
     "get_db",
     "init_db",
-    "keymaker",
+    "secretmanager",
 ]
