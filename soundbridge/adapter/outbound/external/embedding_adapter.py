@@ -1,49 +1,22 @@
-# 레이어: Outbound — 임베딩 EmbeddingPort 구현 (768차원, nomic-embed-text)
+# 레이어: Outbound — Cohere embed-v4.0 EmbeddingPort 구현
 from __future__ import annotations
 
 from uuid import UUID
 
-import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from soundbridge.app.ports.output.embedding_port import EmbeddingPort
-from soundbridge.infrastructure.exceptions import EmbeddingException
-from soundbridge.infrastructure.settings import settings
+from soundbridge.infrastructure.cohere_embed import embed_text_async
 
 
-class ExaoneEmbeddingAdapter(EmbeddingPort):
+class CohereEmbeddingAdapter(EmbeddingPort):
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
-        self._base_url = settings.embed_base_url.rstrip("/")
-        self._model = settings.embed_model
 
     async def embed_text(self, text: str) -> list[float]:
-        url = f"{self._base_url}/api/embeddings"
-        try:
-            async with httpx.AsyncClient(timeout=settings.discover_embed_timeout_sec) as client:
-                response = await client.post(
-                    url,
-                    json={"model": self._model, "prompt": text},
-                )
-                response.raise_for_status()
-                embedding = response.json().get("embedding")
-                if not embedding:
-                    raise EmbeddingException("임베딩 응답에 embedding 이 없습니다.")
-                if len(embedding) != settings.embedding_dimension:
-                    raise EmbeddingException(
-                        f"임베딩 차원 불일치: {len(embedding)} (기대 {settings.embedding_dimension})"
-                    )
-                return embedding
-        except EmbeddingException:
-            raise
-        except httpx.HTTPError as e:
-            raise EmbeddingException(
-                f"임베딩 요청 실패 ({self._base_url}). 임베딩 서버가 실행 중인지 확인하세요."
-            ) from e
-        except Exception as e:
-            raise EmbeddingException(f"임베딩 생성 실패: {e}") from e
+        return await embed_text_async(text, input_type="search_query")
 
     async def find_similar_tracks(
         self,

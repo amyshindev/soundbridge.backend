@@ -1,6 +1,13 @@
 # 레이어: Infrastructure — 환경변수 SSOT
-from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from soundbridge.infrastructure.embedding_config import (
+    DEFAULT_EMBED_MODEL,
+    EMBEDDING_DIMENSION,
+)
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=(".env", "../.env"), extra="ignore")
@@ -13,10 +20,9 @@ class Settings(BaseSettings):
     exaone_base_url: str = "https://api.friendli.ai/serverless/v1"
     exaone_model: str = "LGAI-EXAONE/K-EXAONE-236B-A23B"
 
-    # 임베딩 [MVP] — pgvector 검색 (/api/embeddings)
-    embed_base_url: str = "https://soundbridge-ollama.fly.dev"
-    embed_model: str = "nomic-embed-text"
-    embedding_dimension: int = 768
+    # Cohere 임베딩 [MVP] — pgvector 검색 (embed-v4.0)
+    embed_model: str = DEFAULT_EMBED_MODEL
+    embedding_dimension: int = EMBEDDING_DIMENSION
 
     # DISCOVER 타임아웃·enrich
     discover_exaone_enrich: bool = True

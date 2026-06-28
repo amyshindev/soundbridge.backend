@@ -7,8 +7,11 @@ from dataclasses import asdict
 from uuid import UUID
 
 from soundbridge.adapter.outbound.mappers.track_result_mapper import to_track_result
-from soundbridge.app.constants.filter_constants import POPULAR_TRACKS_DEFAULT_LIMIT
-from soundbridge.app.constants.preset_constants import DISCOVER_CACHE_TTL_SEC, DISCOVER_TOP_K
+from soundbridge.app.policies.discover_policy import (
+    DISCOVER_CACHE_TTL_SEC,
+    DISCOVER_TOP_K,
+    POPULAR_TRACKS_DEFAULT_LIMIT,
+)
 from soundbridge.app.dtos.track_discover_dto import (
     DiscoverCommand,
     DiscoverResult,

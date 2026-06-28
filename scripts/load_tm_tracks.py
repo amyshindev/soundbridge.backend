@@ -17,7 +17,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import sys
 import uuid
 from datetime import datetime, timezone
@@ -38,33 +37,12 @@ sys.path.insert(0, str(BACKEND_DIR))
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from soundbridge.adapter.outbound.pg.tm_schema_ddl import apply_tm_schema_sync
+from soundbridge.domain.value_objects.bpm_vo import parse_tm_bpm
+from soundbridge.domain.value_objects.emotion_vo import map_tm_emotion_tags
+from soundbridge.domain.value_objects.instrument_vo import infer_instrument_from_tm_genre
+from soundbridge.domain.value_objects.jangdan_vo import extract_jangdan_from_caption
+from soundbridge.domain.value_objects.license_vo import parse_tm_license_rights
 from tm_cue_points import build_cue_points_from_annotation
-
-JANGDAN_KEYWORDS = ("엇모리", "휘모리", "세마치", "굿거리", "중모리", "자진모리", "도드리")
-VALID_JANGDAN_FK = {"자진모리", "중모리", "굿거리", "휘모리", "세마치", "엇모리"}
-
-EMOTION_MAP: dict[str, str] = {
-    "신비로운": "신비",
-    "몽환적인": "신비",
-    "차분한": "차분",
-    "잔잔한": "차분",
-    "명상적인": "차분",
-    "애절한": "슬픔",
-    "쓸쓸한": "슬픔",
-    "강렬한": "웅장",
-    "강한": "웅장",
-    "기품 있는": "웅장",
-    "웅장한": "웅장",
-    "서사적인": "서정",
-    "시적인": "서정",
-    "다정한": "서정",
-    "표현적인": "서정",
-    "단아한": "서정",
-    "우아한": "서정",
-    "진지한": "차분",
-    "신나는": "신남",
-    "활기찬": "신남",
-}
 
 
 def load_env_files() -> None:
@@ -85,58 +63,6 @@ def normalize_db_url(url: str) -> str:
     if url.startswith("postgresql+psycopg_async://"):
         return "postgresql://" + url.removeprefix("postgresql+psycopg_async://")
     return url
-
-
-def extract_jangdan(caption_ko: str) -> tuple[str, str]:
-    """(jangdan_name FK, jangdan_raw) 반환."""
-    for keyword in JANGDAN_KEYWORDS:
-        if keyword in caption_ko:
-            raw = keyword
-            fk = keyword if keyword in VALID_JANGDAN_FK else "중모리"
-            return fk, raw
-    return "자진모리", ""
-
-
-def map_emotion_tags(whole_emotions: list[dict]) -> list[str]:
-    scored: dict[str, int] = {}
-    for item in whole_emotions or []:
-        label = (item.get("emotion") or "").strip()
-        count = int(item.get("count") or 1)
-        mapped = EMOTION_MAP.get(label)
-        if mapped:
-            scored[mapped] = scored.get(mapped, 0) + count
-
-    if not scored:
-        return []
-
-    ranked = sorted(scored.items(), key=lambda x: x[1], reverse=True)
-    return [tag for tag, _ in ranked[:3]]
-
-
-def infer_instrument(genre_mclsf: str) -> str:
-    genre_mclsf = (genre_mclsf or "").strip()
-    if genre_mclsf == "판소리":
-        return "판소리"
-    if genre_mclsf == "불교음악":
-        return "가창"
-    if genre_mclsf in ("민요", "풍류음악", "궁중음악"):
-        return "가창"
-    return "미분류"
-
-
-def parse_license(rights: str) -> str:
-    text = (rights or "").strip()
-    if "2" in text:
-        return "KOGL_2"
-    return "KOGL_1"
-
-
-def parse_bpm(tempo: str) -> int:
-    tempo = (tempo or "").strip()
-    if not tempo or tempo.upper() == "N/A":
-        return 0
-    match = re.search(r"\d+", tempo)
-    return int(match.group()) if match else 0
 
 
 def labeling_path_for(meta_path: Path, data_root: Path) -> Path | None:
@@ -187,7 +113,7 @@ def parse_track_record(meta_path: Path, data_root: Path) -> dict | None:
         caption_en = (annotation.get("caption_en") or "").strip()
         cue_points = build_cue_points_from_annotation(annotation)
 
-    jangdan_name, jangdan_raw = extract_jangdan(caption_ko)
+    jangdan_name, jangdan_raw = extract_jangdan_from_caption(caption_ko)
     whole_emotions = contents.get("whole_emotions") or []
     whole_tones = contents.get("whole_tones") or []
 
@@ -195,12 +121,12 @@ def parse_track_record(meta_path: Path, data_root: Path) -> dict | None:
         "source_identifier": identifier,
         "title": (meta.get("title") or identifier).strip()[:200],
         "artist": (contents.get("performer") or "미상").strip()[:100],
-        "instrument": infer_instrument(contents.get("genre_mclsf") or ""),
+        "instrument": infer_instrument_from_tm_genre(contents.get("genre_mclsf") or ""),
         "jangdan_name": jangdan_name,
         "jangdan_raw": jangdan_raw,
-        "bpm": parse_bpm(contents.get("tempo") or ""),
+        "bpm": parse_tm_bpm(contents.get("tempo") or ""),
         "audio_url": (contents.get("file_name") or "").strip(),
-        "public_license_type": parse_license(meta.get("rights") or ""),
+        "public_license_type": parse_tm_license_rights(meta.get("rights") or "").value,
         "description_ko": caption_ko,
         "description_en": caption_en,
         "classification_code": (meta.get("classification_code") or "").strip()[:20],
@@ -212,7 +138,7 @@ def parse_track_record(meta_path: Path, data_root: Path) -> dict | None:
         "original_track_code": (contents.get("original_track_code") or "").strip()[:50],
         "whole_emotions": whole_emotions,
         "whole_tones": whole_tones,
-        "emotion_tags": map_emotion_tags(whole_emotions),
+        "emotion_tags": map_tm_emotion_tags(whole_emotions),
         "cue_points": cue_points,
     }
 

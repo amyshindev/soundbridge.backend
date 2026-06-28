@@ -24,6 +24,7 @@ class TrackResponseSchema(BaseModel):
     license_label_en: str
     description_ko: str
     description_en: str
+    genre: str = ""
     score: float | None = None
     explanation: str | None = None
     preset_url: str | None = None

@@ -26,7 +26,13 @@ class GugakTrack:
     audio_url: str
     public_license: PublicLicense
     description_ko: str
-    description_en: str
+    description_en: str = ""
+    source_identifier: str | None = None
+    genre_mclsf: str = ""
+
+    @property
+    def is_tm_track(self) -> bool:
+        return bool(self.source_identifier)
 
     @property
     def loop_unit_beats(self) -> int:

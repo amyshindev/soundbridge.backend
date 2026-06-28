@@ -19,6 +19,7 @@ from soundbridge.adapter.inbound.mappers.track_discover_mapper import (
 )
 from soundbridge.app.dtos.create_preset_dto import CreatePresetCommand
 from soundbridge.app.dtos.track_discover_dto import DiscoverCommand
+from soundbridge.app.policies.discover_policy import POPULAR_TRACKS_DEFAULT_LIMIT
 from soundbridge.app.ports.input.create_preset_use_case import CreatePresetUseCase
 from soundbridge.app.ports.input.track_discover_use_case import TrackDiscoverUseCase
 from soundbridge.dependencies.create_preset_provider import get_create_preset_use_case
@@ -75,7 +76,7 @@ async def suggest_released_tracks(
 
 @router.get("/popular", response_model=list[TrackResponseSchema])
 async def get_popular_tracks(
-    limit: int = 6,
+    limit: int = POPULAR_TRACKS_DEFAULT_LIMIT,
     use_case: TrackDiscoverUseCase = Depends(get_track_discover_use_case),
 ) -> list[TrackResponseSchema]:
     tracks = await use_case.get_popular_tracks(limit)

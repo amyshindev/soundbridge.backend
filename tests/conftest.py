@@ -15,6 +15,7 @@ from soundbridge.domain.value_objects.emotion_vo import EmotionTag
 from soundbridge.domain.value_objects.instrument_vo import Instrument
 from soundbridge.domain.value_objects.jangdan_vo import Jangdan, JangdanType
 from soundbridge.domain.value_objects.license_vo import PublicLicense
+from soundbridge.infrastructure.embedding_config import EMBEDDING_DIMENSION
 
 
 @pytest.fixture
@@ -41,6 +42,8 @@ def sample_gugak_track(track_id: uuid.UUID) -> GugakTrack:
         public_license=PublicLicense.KOGL_1,
         description_ko="불교 음악 회심곡",
         description_en="Buddhist vocal piece",
+        source_identifier="KC_TM_ET_BM_S005672",
+        genre_mclsf="불교음악",
     )
 
 
@@ -63,6 +66,7 @@ def sample_track_result(track_id: uuid.UUID) -> TrackResult:
         license_label_en="CC-BY (Commercial OK)",
         description_ko="불교 음악 회심곡",
         description_en="Buddhist vocal piece",
+        genre="불교음악",
         score=0.92,
         explanation="테스트 설명",
     )
@@ -81,7 +85,7 @@ def mock_track_repository(sample_gugak_track: GugakTrack) -> AsyncMock:
 @pytest.fixture
 def mock_embedding_port(track_id: uuid.UUID) -> AsyncMock:
     port = AsyncMock()
-    port.embed_text.return_value = [0.1] * 768
+    port.embed_text.return_value = [0.1] * EMBEDDING_DIMENSION
     port.find_similar_tracks.return_value = [track_id]
     return port
 

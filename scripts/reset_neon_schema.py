@@ -1,4 +1,4 @@
-"""구 스키마 제거 후 alembic 001_init 재적용."""
+"""Neon PostgreSQL 스키마 제거 후 alembic 001_init 재적용."""
 import asyncio
 import subprocess
 import sys

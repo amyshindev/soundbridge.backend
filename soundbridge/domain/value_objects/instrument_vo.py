@@ -1,18 +1,5 @@
-# 레이어: Domain — 악기 VO
+# 레이어: Domain — 악기 VO (TM genre_mclsf 기반 추론)
 from enum import Enum
-
-# 국악 API 악기 코드 → enum 한글명 (구 DB 적재분 호환)
-INSTRUMENT_CODE_MAP: dict[str, str] = {
-    "PHINST0022": "장구",
-    "PHINST0001": "가야금",
-    "PHINST0002": "대금",
-    "PHINST0003": "해금",
-    "PHINST0004": "거문고",
-    "PHINST0005": "피리",
-    "PHINST0006": "아쟁",
-    "PHINST0007": "소금",
-    "소금": "소금",
-}
 
 
 class Instrument(str, Enum):
@@ -31,8 +18,20 @@ class Instrument(str, Enum):
 
     @classmethod
     def from_db_value(cls, raw: str) -> "Instrument":
-        name = INSTRUMENT_CODE_MAP.get((raw or "").strip(), (raw or "").strip())
+        name = (raw or "").strip()
         try:
             return cls(name)
         except ValueError:
             return cls.OTHER
+
+
+def infer_instrument_from_tm_genre(genre_mclsf: str) -> str:
+    """TM genre_mclsf → gugak_tracks.instrument 문자열."""
+    genre_mclsf = (genre_mclsf or "").strip()
+    if genre_mclsf == Instrument.PANSORI.value:
+        return Instrument.PANSORI.value
+    if genre_mclsf == "불교음악":
+        return Instrument.VOCAL.value
+    if genre_mclsf in ("민요", "풍류음악", "궁중음악"):
+        return Instrument.VOCAL.value
+    return Instrument.OTHER.value

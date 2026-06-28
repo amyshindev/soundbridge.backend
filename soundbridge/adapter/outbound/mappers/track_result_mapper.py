@@ -22,4 +22,5 @@ def to_track_result(track: GugakTrack) -> TrackResult:
         license_label_en=track.license_label_en,
         description_ko=track.description_ko,
         description_en=track.description_en,
+        genre=track.genre_mclsf,
     )

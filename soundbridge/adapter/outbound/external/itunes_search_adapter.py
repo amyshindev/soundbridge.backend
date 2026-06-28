@@ -21,7 +21,7 @@ class ItunesSearchAdapter:
         country: str = "KR",
     ) -> list[dict]:
         term = query.strip()
-        if len(term) < 2:
+        if not term:
             return []
 
         params = {

@@ -1,23 +1,21 @@
-"""임베딩 서버 모델 목록 확인 (nomic-embed-text 등)."""
+"""Cohere embed-v4.0 연결 확인."""
 from __future__ import annotations
 
-import json
-import os
-import urllib.error
-import urllib.request
+from soundbridge.infrastructure.cohere_embed import embed_text_sync
+from soundbridge.infrastructure.secret_manager import secretmanager
+from soundbridge.infrastructure.settings import settings
 
-from dotenv import load_dotenv
 
-load_dotenv()
+def main() -> None:
+    secretmanager.bootstrap()
+    key = secretmanager.get_cohere_api_key()
+    print("model:", settings.embed_model)
+    print("dimension:", settings.embedding_dimension)
+    print("key_len:", len(key))
 
-base = os.getenv("EMBED_BASE_URL", "http://localhost:11434").rstrip("/")
-url = f"{base}/api/tags"
+    vector = embed_text_sync("국악 서정적인 가창", input_type="search_document")
+    print("ok:", len(vector), "dims")
 
-try:
-    with urllib.request.urlopen(url, timeout=15) as resp:
-        data = json.loads(resp.read().decode())
-except urllib.error.URLError as e:
-    raise SystemExit(f"임베딩 서버 연결 실패 ({base}): {e}") from e
 
-for model in data.get("models", []):
-    print(model.get("name"), model.get("size"))
+if __name__ == "__main__":
+    main()

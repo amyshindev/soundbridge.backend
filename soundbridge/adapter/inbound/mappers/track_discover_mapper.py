@@ -23,6 +23,7 @@ def to_track_response(track: TrackResult) -> TrackResponseSchema:
         license_label_en=track.license_label_en,
         description_ko=track.description_ko,
         description_en=track.description_en,
+        genre=track.genre,
         score=track.score,
         explanation=track.explanation,
         preset_url=track.preset_url,

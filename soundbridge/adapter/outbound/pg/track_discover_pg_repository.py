@@ -56,6 +56,37 @@ class TrackDiscoverPgRepository(TrackRepository):
     async def find_popular(self, limit: int = 6) -> list[GugakTrack]:
         result = await self._session.execute(
             text("""
+                WITH eligible AS (
+                    SELECT t.id, NULLIF(TRIM(t.genre_mclsf), '') AS genre_mclsf
+                    FROM gugak_tracks t
+                    WHERE t.embedding IS NOT NULL
+                      AND t.source_identifier IS NOT NULL
+                      AND NULLIF(TRIM(t.genre_mclsf), '') IS NOT NULL
+                      AND t.id IN (
+                          SELECT DISTINCT ON (title) id
+                          FROM gugak_tracks
+                          WHERE embedding IS NOT NULL
+                            AND source_identifier IS NOT NULL
+                          ORDER BY title, created_at DESC
+                      )
+                ),
+                per_genre AS (
+                    SELECT DISTINCT ON (genre_mclsf) id
+                    FROM eligible
+                    ORDER BY genre_mclsf, RANDOM()
+                ),
+                fill AS (
+                    SELECT e.id
+                    FROM eligible e
+                    WHERE e.id NOT IN (SELECT id FROM per_genre)
+                    ORDER BY RANDOM()
+                    LIMIT GREATEST(0, :limit - (SELECT COUNT(*)::int FROM per_genre))
+                ),
+                picked AS (
+                    SELECT id FROM per_genre
+                    UNION ALL
+                    SELECT id FROM fill
+                )
                 SELECT
                     t.*,
                     COALESCE(
@@ -65,15 +96,7 @@ class TrackDiscoverPgRepository(TrackRepository):
                     ) AS emotion_tag_rows
                 FROM gugak_tracks t
                 LEFT JOIN track_emotion_tags tet ON tet.track_id = t.id
-                WHERE t.embedding IS NOT NULL
-                  AND t.source_identifier IS NOT NULL
-                AND t.id IN (
-                    SELECT DISTINCT ON (title) id
-                    FROM gugak_tracks
-                    WHERE embedding IS NOT NULL
-                      AND source_identifier IS NOT NULL
-                    ORDER BY title, created_at DESC
-                )
+                WHERE t.id IN (SELECT id FROM picked)
                 GROUP BY t.id
                 ORDER BY RANDOM()
                 LIMIT :limit
@@ -96,6 +119,7 @@ class TrackDiscoverPgRepository(TrackRepository):
                 description_en=row["description_en"],
                 embedding=row.get("embedding"),
                 created_at=row["created_at"],
+                genre_mclsf=row.get("genre_mclsf") or "",
             )
             tag_names = row.get("emotion_tag_rows") or []
             orm.emotion_tag_rows = [

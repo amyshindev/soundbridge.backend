@@ -1,4 +1,4 @@
 from soundbridge.adapter.outbound.external.exaone_llm_adapter import ExaoneLlmAdapter
-from soundbridge.adapter.outbound.external.embedding_adapter import ExaoneEmbeddingAdapter
+from soundbridge.adapter.outbound.external.embedding_adapter import CohereEmbeddingAdapter
 
-__all__ = ["ExaoneLlmAdapter", "ExaoneEmbeddingAdapter"]
+__all__ = ["ExaoneLlmAdapter", "CohereEmbeddingAdapter"]

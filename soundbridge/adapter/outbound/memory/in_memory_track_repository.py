@@ -18,7 +18,23 @@ class InMemoryTrackRepository(TrackRepository):
         return [t for tid in track_ids if (t := self._tracks.get(tid))]
 
     async def find_popular(self, limit: int = 6) -> list[GugakTrack]:
-        return list(self._tracks.values())[:limit]
+        rows = list(self._tracks.values())
+        by_genre: dict[str, GugakTrack] = {}
+        for track in rows:
+            key = (track.genre_mclsf or track.instrument.value).strip()
+            if key and key not in by_genre:
+                by_genre[key] = track
+        diverse = list(by_genre.values())
+        if len(diverse) >= limit:
+            return diverse[:limit]
+        used = {t.id for t in diverse}
+        for track in rows:
+            if len(diverse) >= limit:
+                break
+            if track.id not in used:
+                diverse.append(track)
+                used.add(track.id)
+        return diverse
 
     async def find_with_filters(
         self,

@@ -7,6 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
 from soundbridge.adapter.outbound.orm.base_orm import Base
+from soundbridge.infrastructure.embedding_config import EMBEDDING_DIMENSION
 
 
 class GugakTrackOrm(Base):
@@ -23,7 +24,7 @@ class GugakTrackOrm(Base):
     public_license_type = Column(String(20), nullable=False)
     description_ko = Column(Text, nullable=False, default="")
     description_en = Column(Text, nullable=False, default="")
-    embedding = Column(Vector(768), nullable=True)
+    embedding = Column(Vector(EMBEDDING_DIMENSION), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False)
     # 국악음원(TM) 학습데이터 메타
     source_identifier = Column(String(80), nullable=True, unique=True)

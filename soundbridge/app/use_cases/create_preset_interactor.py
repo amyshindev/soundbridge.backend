@@ -1,5 +1,5 @@
 # 레이어: Application — DISCOVER→CREATE 프리셋 URL 변환 유스케이스
-from soundbridge.app.constants.preset_constants import (
+from soundbridge.app.policies.create_preset_policy import (
     PRESET_BPM_MARGIN,
     PRESET_BPM_MAX_CEIL,
     PRESET_BPM_MIN_FLOOR,
