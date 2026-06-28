@@ -151,10 +151,14 @@ class ExaoneLlmAdapter(ExaonePort):
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.4,
                 max_tokens=max_tokens,
+                extra_body={"chat_template_kwargs": {"enable_thinking": False}},
             )
             content = (response.choices[0].message.content or "").strip()
             if not content:
-                raise ExaoneApiException("EXAONE 응답이 비어 있습니다.")
+                raise ExaoneApiException(
+                    "EXAONE 응답이 비어 있습니다. "
+                    "(reasoning 모드일 수 있음 — enable_thinking=False 필요)"
+                )
             return content
         except ExaoneApiException:
             raise
@@ -225,7 +229,7 @@ class ExaoneLlmAdapter(ExaonePort):
             tracks_block="\n".join(lines),
         )
 
-        raw = await self._chat(prompt, max_tokens=512)
+        raw = await self._chat(prompt, max_tokens=1024)
         try:
             data = _extract_json_object(raw)
             explanation_items = data.get("explanations", [])
