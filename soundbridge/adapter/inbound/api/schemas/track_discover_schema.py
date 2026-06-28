@@ -8,7 +8,7 @@ class DiscoverRequestSchema(BaseModel):
     lang: str = Field(default="ko", pattern="^(ko|en)$")
     enrich: bool = Field(
         default=False,
-        description="true면 Ollama(EXAONE)로 매칭 설명 생성(느림). 기본은 템플릿 설명",
+        description="true면 EXAONE으로 매칭 설명 생성(느림). 기본은 템플릿 설명",
     )
 
 

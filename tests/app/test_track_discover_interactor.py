@@ -17,19 +17,19 @@ from soundbridge.infrastructure.settings import settings
 async def test_discover_returns_matched_tracks(
     mock_track_repository: AsyncMock,
     mock_embedding_port: AsyncMock,
-    mock_ollama_port: AsyncMock,
+    mock_exaone_port: AsyncMock,
     sample_gugak_track: GugakTrack,
 ) -> None:
     interactor = TrackDiscoverInteractor(
         track_repo=mock_track_repository,
-        ollama=mock_ollama_port,
+        exaone=mock_exaone_port,
         embedding=mock_embedding_port,
         redis=None,
     )
 
-    with patch.object(settings, "discover_ollama_enrich", False):
+    with patch.object(settings, "discover_exaone_enrich", False):
         result = await interactor.discover(
-            DiscoverCommand(input_text="서정적인 느낌", lang="ko", enrich=True)
+            DiscoverCommand(input_text="서정적인 느낌", lang="ko", enrich=False)
         )
 
     assert len(result.tracks) == 1
@@ -44,12 +44,12 @@ async def test_discover_returns_matched_tracks(
 async def test_get_popular_tracks(
     mock_track_repository: AsyncMock,
     mock_embedding_port: AsyncMock,
-    mock_ollama_port: AsyncMock,
+    mock_exaone_port: AsyncMock,
     sample_gugak_track: GugakTrack,
 ) -> None:
     interactor = TrackDiscoverInteractor(
         track_repo=mock_track_repository,
-        ollama=mock_ollama_port,
+        exaone=mock_exaone_port,
         embedding=mock_embedding_port,
     )
 
@@ -64,12 +64,12 @@ async def test_get_popular_tracks(
 async def test_get_track_detail_not_found(
     mock_track_repository: AsyncMock,
     mock_embedding_port: AsyncMock,
-    mock_ollama_port: AsyncMock,
+    mock_exaone_port: AsyncMock,
 ) -> None:
     mock_track_repository.find_by_id.return_value = None
     interactor = TrackDiscoverInteractor(
         track_repo=mock_track_repository,
-        ollama=mock_ollama_port,
+        exaone=mock_exaone_port,
         embedding=mock_embedding_port,
     )
 
@@ -80,12 +80,12 @@ async def test_get_track_detail_not_found(
 def test_template_explanations_ko(
     mock_track_repository: AsyncMock,
     mock_embedding_port: AsyncMock,
-    mock_ollama_port: AsyncMock,
+    mock_exaone_port: AsyncMock,
     sample_gugak_track: GugakTrack,
 ) -> None:
     interactor = TrackDiscoverInteractor(
         track_repo=mock_track_repository,
-        ollama=mock_ollama_port,
+        exaone=mock_exaone_port,
         embedding=mock_embedding_port,
     )
 

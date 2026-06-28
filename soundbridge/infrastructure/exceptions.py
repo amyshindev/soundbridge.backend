@@ -12,7 +12,7 @@ class TrackNotFoundException(SoundBridgeException):
         super().__init__(f"Track not found: {track_id}")
 
 
-class OllamaApiException(SoundBridgeException):
+class ExaoneApiException(SoundBridgeException):
     pass
 
 

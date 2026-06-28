@@ -17,12 +17,12 @@ from soundbridge.app.dtos.track_discover_dto import (
 )
 from soundbridge.app.ports.input.track_discover_use_case import TrackDiscoverUseCase
 from soundbridge.app.ports.output.embedding_port import EmbeddingPort
-from soundbridge.app.ports.output.ollama_port import OllamaPort
+from soundbridge.app.ports.output.exaone_port import ExaonePort
 from soundbridge.app.ports.output.track_repository import TrackRepository
 from soundbridge.domain.entities.track_entity import GugakTrack
 from soundbridge.infrastructure.exceptions import (
     EmbeddingException,
-    OllamaApiException,
+    ExaoneApiException,
     TrackNotFoundException,
 )
 from soundbridge.infrastructure.settings import settings
@@ -35,12 +35,12 @@ class TrackDiscoverInteractor(TrackDiscoverUseCase):
     def __init__(
         self,
         track_repo: TrackRepository,
-        ollama: OllamaPort,
+        exaone: ExaonePort,
         embedding: EmbeddingPort,
         redis=None,
     ) -> None:
         self._track_repo = track_repo
-        self._ollama = ollama
+        self._exaone = exaone
         self._embedding = embedding
         self._redis = redis
 
@@ -59,14 +59,14 @@ class TrackDiscoverInteractor(TrackDiscoverUseCase):
                 timeout=settings.discover_embed_timeout_sec,
             )
         except asyncio.TimeoutError as e:
-            raise OllamaApiException("임베딩 생성 시간이 초과되었습니다.") from e
+            raise ExaoneApiException("임베딩 생성 시간이 초과되었습니다.") from e
         except EmbeddingException as e:
-            raise OllamaApiException(str(e)) from e
+            raise ExaoneApiException(str(e)) from e
 
         try:
             track_ids = await self._embedding.find_similar_tracks(query_vec, top_k=DISCOVER_TOP_K)
         except EmbeddingException as e:
-            raise OllamaApiException(str(e)) from e
+            raise ExaoneApiException(str(e)) from e
         tracks = await self._track_repo.find_by_ids(track_ids)
 
         return await self._finalize_discover(command, tracks, cache_key)
@@ -83,7 +83,7 @@ class TrackDiscoverInteractor(TrackDiscoverUseCase):
             input_summary = f'"{command.input_text[:60]}" 와 감성이 닮은 국악'
         explanations: list[MatchExplanation] = []
         if tracks:
-            if self._should_ollama_enrich(command):
+            if self._should_exaone_enrich(command):
                 explanations, input_summary = await self._resolve_explanations(
                     command, tracks, input_summary
                 )
@@ -121,11 +121,11 @@ class TrackDiscoverInteractor(TrackDiscoverUseCase):
             raise TrackNotFoundException(track_id)
         return self._build_result([track], [], track.title, "ko")
 
-    def _should_ollama_enrich(self, command: DiscoverCommand) -> bool:
-        return command.enrich or settings.discover_ollama_enrich
+    def _should_exaone_enrich(self, command: DiscoverCommand) -> bool:
+        return command.enrich or settings.discover_exaone_enrich
 
     def _make_cache_key(self, command: DiscoverCommand) -> str:
-        enrich_flag = "1" if self._should_ollama_enrich(command) else "0"
+        enrich_flag = "1" if self._should_exaone_enrich(command) else "0"
         digest = hashlib.md5(
             f"{command.input_text}:{command.lang}:{enrich_flag}".encode()
         ).hexdigest()
@@ -141,24 +141,24 @@ class TrackDiscoverInteractor(TrackDiscoverUseCase):
 
         async def _run() -> tuple[list[MatchExplanation], str]:
             try:
-                summary, explanations = await self._ollama.enrich_discover_matches(
+                summary, explanations = await self._exaone.enrich_discover_matches(
                     command.input_text, tracks, command.lang
                 )
                 if self._has_rich_explanations(explanations):
                     return explanations, summary
-            except OllamaApiException as e:
+            except ExaoneApiException as e:
                 logger.warning("Discover batch enrich failed: %s", e)
 
-            explanations = await self._ollama.explain_match(
+            explanations = await self._exaone.explain_match(
                 command.input_text, tracks, command.lang
             )
             if self._has_rich_explanations(explanations):
                 return explanations, input_summary
-            raise OllamaApiException("EXAONE explanations too thin")
+            raise ExaoneApiException("EXAONE explanations too thin")
 
         try:
             return await asyncio.wait_for(_run(), timeout=settings.discover_total_timeout_sec)
-        except (asyncio.TimeoutError, OllamaApiException) as e:
+        except (asyncio.TimeoutError, ExaoneApiException) as e:
             logger.warning("Discover LLM phase failed: %s", e)
 
         return (

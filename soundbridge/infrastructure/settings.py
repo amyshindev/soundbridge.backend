@@ -9,23 +9,21 @@ class Settings(BaseSettings):
     database_url: str
     redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379")
 
-    # Ollama [MVP] — DISCOVER 임베딩 + EXAONE 매칭 설명
-    ollama_base_url: str = "https://soundbridge-ollama.fly.dev"
-    ollama_embed_model: str = "nomic-embed-text"
-    ollama_chat_model: str = "exaone3.5:2.4b"
+    # EXAONE LLM (Friendli AI) [MVP] — DISCOVER 매칭 설명
+    exaone_api_key: str = "flp_xxxxxx"
+    exaone_base_url: str = "https://api.friendli.ai/serverless/v1"
+    exaone_model: str = "LGAI-EXAONE/K-EXAONE-236B-A23B"
+
+    # 임베딩 [MVP] — pgvector 검색 (/api/embeddings)
+    embed_base_url: str = "https://soundbridge-ollama.fly.dev"
+    embed_model: str = "nomic-embed-text"
     embedding_dimension: int = 768
 
-    # App [MVP]
-    app_env: str = "development"
-    frontend_url: str = "http://localhost:3000"
-    cors_origins: str = ""
-    # 국악 원천데이터 루트 (test/원천데이터). 비우면 /audio 엔드포인트 503
-    audio_files_root: str = ""
-    # DISCOVER: enrich=true 시 Ollama LLM(EXAONE)으로 매칭 설명. false면 템플릿
-    discover_ollama_enrich: bool = True
-    discover_llm_timeout_sec: float = 90.0
+    # DISCOVER 타임아웃·enrich
+    discover_exaone_enrich: bool = True
     discover_embed_timeout_sec: float = 30.0
-    discover_total_timeout_sec: float = 75.0
+    discover_llm_timeout_sec: float = 60.0
+    discover_total_timeout_sec: float = 90.0
 
     # Auth [v1.1]
     secret_key: str = ""

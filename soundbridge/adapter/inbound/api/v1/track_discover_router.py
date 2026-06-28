@@ -23,7 +23,7 @@ from soundbridge.app.ports.input.create_preset_use_case import CreatePresetUseCa
 from soundbridge.app.ports.input.track_discover_use_case import TrackDiscoverUseCase
 from soundbridge.dependencies.create_preset_provider import get_create_preset_use_case
 from soundbridge.dependencies.track_discover_provider import get_track_discover_use_case
-from soundbridge.infrastructure.exceptions import OllamaApiException, TrackNotFoundException
+from soundbridge.infrastructure.exceptions import ExaoneApiException, TrackNotFoundException
 
 router = APIRouter()
 
@@ -49,7 +49,7 @@ async def discover_gugak(
                 )
                 track.preset_url = preset.full_url
         return to_discover_response(result)
-    except OllamaApiException as e:
+    except ExaoneApiException as e:
         raise HTTPException(status_code=503, detail=str(e) or "AI 서비스 일시 오류") from None
     except json.JSONDecodeError as e:
         raise HTTPException(

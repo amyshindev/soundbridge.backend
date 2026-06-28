@@ -1,21 +1,20 @@
-# 레이어: Outbound — Ollama EXAONE 등 로컬 LLM (OllamaPort 구현)
+# 레이어: Outbound — Friendli AI EXAONE LLM (ExaonePort 구현)
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import re
 
-import httpx
+from openai import AsyncOpenAI
 
 from soundbridge.app.dtos.track_discover_dto import EmotionAnalysisResult, MatchExplanation
-from soundbridge.app.ports.output.ollama_port import OllamaPort
-from soundbridge.infrastructure.exceptions import OllamaApiException
+from soundbridge.app.ports.output.exaone_port import ExaonePort
+from soundbridge.infrastructure.exceptions import ExaoneApiException
 from soundbridge.infrastructure.settings import settings
 
 logger = logging.getLogger(__name__)
 
-DISCOVER_ENRICH_PROMPT_OLLAMA = """
+DISCOVER_ENRICH_PROMPT = """
 당신은 국악 감성 큐레이터입니다.
 아래 국악은 이미 사용자 입력과 **비슷하다고** 시스템이 골라 놓은 곡입니다.
 각 곡이 입력 음악과 **무엇이 닮았는지**만 설명하세요.
@@ -43,7 +42,7 @@ DISCOVER_ENRICH_PROMPT_OLLAMA = """
 }}
 """
 
-MATCH_EXPLANATION_PROMPT_OLLAMA = """
+MATCH_EXPLANATION_PROMPT = """
 사용자가 좋아하는 음악: {user_input}
 
 매칭 국악곡: {track_title}
@@ -62,9 +61,9 @@ JSON만 출력:
 
 
 def _raise_llm_error(exc: Exception, context: str) -> None:
-    raise OllamaApiException(
-        f"{context}: {exc}. Ollama가 실행 중이고 "
-        f"'{settings.ollama_chat_model}' 모델이 pull 되었는지 확인하세요."
+    raise ExaoneApiException(
+        f"{context}: {exc}. Friendli AI API 키와 모델 "
+        f"({settings.exaone_model}) 설정을 확인하세요."
     ) from exc
 
 
@@ -82,7 +81,7 @@ def _extract_json_object(raw: str) -> dict:
                 return json.loads(match.group())
             except json.JSONDecodeError:
                 pass
-        raise OllamaApiException("LLM JSON 파싱 실패")
+        raise ExaoneApiException("LLM JSON 파싱 실패")
 
 
 def _parse_explanations_from_raw(raw: str, track_count: int) -> list[dict]:
@@ -134,39 +133,35 @@ def _is_rich_explanation(text: str) -> bool:
     return not any(marker in stripped or marker in lower for marker in _CONTRAST_MARKERS)
 
 
-class OllamaLlmAdapter(OllamaPort):
+class ExaoneLlmAdapter(ExaonePort):
 
     def __init__(self) -> None:
-        self._base_url = settings.ollama_base_url.rstrip("/")
-        self._model = settings.ollama_chat_model
-        self._timeout = settings.discover_llm_timeout_sec
+        self._client = AsyncOpenAI(
+            api_key=settings.exaone_api_key,
+            base_url=settings.exaone_base_url.rstrip("/"),
+            timeout=settings.discover_llm_timeout_sec,
+        )
+        self._model = settings.exaone_model
 
-    async def _chat(self, prompt: str, *, num_predict: int = 220) -> str:
-        url = f"{self._base_url}/api/chat"
-        payload = {
-            "model": self._model,
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": False,
-            "options": {"temperature": 0.4, "num_predict": num_predict},
-        }
-
+    async def _chat(self, prompt: str, *, max_tokens: int = 220) -> str:
         try:
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(url, json=payload)
-                response.raise_for_status()
-                content = response.json().get("message", {}).get("content", "")
-                if not content:
-                    raise OllamaApiException("Ollama 응답이 비어 있습니다.")
-                return content
-        except OllamaApiException:
+            response = await self._client.chat.completions.create(
+                model=self._model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.4,
+                max_tokens=max_tokens,
+            )
+            content = (response.choices[0].message.content or "").strip()
+            if not content:
+                raise ExaoneApiException("EXAONE 응답이 비어 있습니다.")
+            return content
+        except ExaoneApiException:
             raise
-        except httpx.HTTPError as e:
-            _raise_llm_error(e, "Ollama LLM 요청 실패")
         except Exception as e:
-            _raise_llm_error(e, "Ollama LLM 처리 실패")
+            _raise_llm_error(e, "EXAONE LLM 요청 실패")
 
     async def analyze_emotion(self, user_input: str, lang: str) -> EmotionAnalysisResult:
-        raise OllamaApiException("Ollama 감성 분석은 DISCOVER에서 사용하지 않습니다.")
+        raise ExaoneApiException("EXAONE 감성 분석은 DISCOVER에서 사용하지 않습니다.")
 
     async def explain_match(
         self, user_input: str, tracks: list, lang: str
@@ -176,7 +171,7 @@ class OllamaLlmAdapter(OllamaPort):
 
         async def explain_one(track) -> MatchExplanation:
             tags = ", ".join(e.value for e in track.emotion_tags)
-            prompt = MATCH_EXPLANATION_PROMPT_OLLAMA.format(
+            prompt = MATCH_EXPLANATION_PROMPT.format(
                 user_input=user_input,
                 track_title=track.title,
                 instrument=_instrument_for_prompt(track.instrument.value),
@@ -204,12 +199,11 @@ class OllamaLlmAdapter(OllamaPort):
                     explanation_en="",
                 )
 
-        results = []
+        results: list[MatchExplanation] = []
         for track in tracks:
-            result = await explain_one(track)
-        results.append(result)
+            results.append(await explain_one(track))
         return results
-        
+
     async def enrich_discover_matches(
         self, user_input: str, tracks: list, lang: str
     ) -> tuple[str, list[MatchExplanation]]:
@@ -225,17 +219,17 @@ class OllamaLlmAdapter(OllamaPort):
                 f"장단: {track.jangdan.type.value} | 감성: {tags or '없음'} | 설명: {desc}"
             )
 
-        prompt = DISCOVER_ENRICH_PROMPT_OLLAMA.format(
+        prompt = DISCOVER_ENRICH_PROMPT.format(
             user_input=user_input,
             tracks_block="\n".join(lines),
         )
 
-        raw = await self._chat(prompt, num_predict=512)
+        raw = await self._chat(prompt, max_tokens=512)
         try:
             data = _extract_json_object(raw)
             explanation_items = data.get("explanations", [])
             summary = (data.get("input_summary") or user_input)[:200]
-        except OllamaApiException:
+        except ExaoneApiException:
             explanation_items = _parse_explanations_from_raw(raw, len(tracks))
             if not explanation_items:
                 raise
@@ -262,7 +256,7 @@ class OllamaLlmAdapter(OllamaPort):
             )
 
         if not any(_is_rich_explanation(e.explanation_ko) for e in explanations):
-            raise OllamaApiException("EXAONE 설명이 충분히 생성되지 않았습니다.")
+            raise ExaoneApiException("EXAONE 설명이 충분히 생성되지 않았습니다.")
 
         return summary, explanations
 

@@ -2,8 +2,8 @@
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from soundbridge.adapter.outbound.external.embedding_adapter import OllamaEmbeddingAdapter
-from soundbridge.adapter.outbound.external.ollama_llm_adapter import OllamaLlmAdapter
+from soundbridge.adapter.outbound.external.embedding_adapter import ExaoneEmbeddingAdapter
+from soundbridge.adapter.outbound.external.exaone_llm_adapter import ExaoneLlmAdapter
 from soundbridge.adapter.outbound.pg.track_discover_pg_repository import TrackDiscoverPgRepository
 from soundbridge.app.ports.input.track_discover_use_case import TrackDiscoverUseCase
 from soundbridge.app.use_cases.track_discover_interactor import TrackDiscoverInteractor
@@ -16,7 +16,7 @@ def get_track_discover_use_case(
 ) -> TrackDiscoverUseCase:
     return TrackDiscoverInteractor(
         track_repo=TrackDiscoverPgRepository(session=db),
-        ollama=OllamaLlmAdapter(),
-        embedding=OllamaEmbeddingAdapter(session=db),
+        exaone=ExaoneLlmAdapter(),
+        embedding=ExaoneEmbeddingAdapter(session=db),
         redis=redis_client,
     )

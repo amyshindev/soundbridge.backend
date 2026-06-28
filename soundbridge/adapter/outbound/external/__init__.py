@@ -1,4 +1,4 @@
-from soundbridge.adapter.outbound.external.ollama_llm_adapter import OllamaLlmAdapter
-from soundbridge.adapter.outbound.external.embedding_adapter import OllamaEmbeddingAdapter
+from soundbridge.adapter.outbound.external.exaone_llm_adapter import ExaoneLlmAdapter
+from soundbridge.adapter.outbound.external.embedding_adapter import ExaoneEmbeddingAdapter
 
-__all__ = ["OllamaLlmAdapter", "OllamaEmbeddingAdapter"]
+__all__ = ["ExaoneLlmAdapter", "ExaoneEmbeddingAdapter"]
